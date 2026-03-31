@@ -1,35 +1,58 @@
 {
-  "name": "laravel13-livewire4.2.1-mcp",
-  "version": "2.0.0",
-  "description": "MCP Server for Livewire v4.2+ / Laravel 13 / PHP 8.4+ — Full-stack AI agent with planning, memory, bug fixing, versioning, GitHub integration, and design conversion.",
+  "name": "@shamimstack/mcp-laravel-livewire",
+  "version": "1.0.0",
+  "description": "MCP Server for Livewire v4.2+ / Laravel 13 / PHP 8.4+ — 58 AI-powered tools for full-stack development with planning, memory, bug fixing, versioning, GitHub integration, and design conversion.",
   "type": "module",
   "main": "src/index.js",
   "bin": {
-    "laravel13-livewire4.2.1-mcp": "src/index.js"
+    "mcp-laravel-livewire": "src/index.js"
   },
   "scripts": {
     "start": "node src/index.js",
-    "test": "node --test src/index.test.js"
+    "test": "node src/index.js --help"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
-    "zod": "3.25"
+    "zod": "^3.25.0"
   },
   "keywords": [
     "mcp",
+    "model-context-protocol",
     "livewire",
     "laravel",
+    "laravel-13",
+    "livewire-4.2",
     "php",
+    "ai",
     "agent",
     "planning",
     "rag",
     "github",
     "git",
-    "laravel-13",
-    "livewire-4.2"
+    "auto-sync",
+    "code-generation",
+    "bug-fixing",
+    "security-audit"
   ],
+  "author": "shamimlaravel",
   "license": "MIT",
   "engines": {
     "node": ">=18.0.0"
-  }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/shamimlaravel/laravel13-livewire4.2.1-mcp.git"
+  },
+  "homepage": "https://github.com/shamimlaravel/laravel13-livewire4.2.1-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/shamimlaravel/laravel13-livewire4.2.1-mcp/issues"
+  },
+  "files": [
+    "src/",
+    "README.md",
+    "LICENSE"
+  ]
 }

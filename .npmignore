@@ -1,0 +1,30 @@
+# Documentation site (not needed for MCP server)
+docs/
+
+# Development files
+node_modules/
+.git/
+.gitignore
+.agent-memory/
+*.log
+*.lock
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Test files
+scan-bugs.mjs
+scan.js
+test-deep-scan.js
+*.test.js
+
+# Misc
+kilo.json
+.mcp-config.json
