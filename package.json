@@ -1,0 +1,35 @@
+{
+  "name": "laravel13-livewire4.2.1-mcp",
+  "version": "2.0.0",
+  "description": "MCP Server for Livewire v4.2+ / Laravel 13 / PHP 8.4+ — Full-stack AI agent with planning, memory, bug fixing, versioning, GitHub integration, and design conversion.",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "laravel13-livewire4.2.1-mcp": "src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test src/index.test.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "3.25"
+  },
+  "keywords": [
+    "mcp",
+    "livewire",
+    "laravel",
+    "php",
+    "agent",
+    "planning",
+    "rag",
+    "github",
+    "git",
+    "laravel-13",
+    "livewire-4.2"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
