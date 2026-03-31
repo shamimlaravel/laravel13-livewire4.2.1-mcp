@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" x-data="{ darkMode: $persist(true) }" :data-theme="darkMode ? 'dark' : 'light'">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,6 +8,32 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        accent: {
+                            DEFAULT: '#8b5cf6',
+                            hover: '#7c3aed',
+                            light: 'rgba(139, 92, 246, 0.1)'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        mono: ['Fira Code', 'Consolas', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Alpine.js with Persist plugin -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/persist@3.x.x/dist/cdn.min.js"></script>
+    <!-- Prism.js -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
     <link rel="stylesheet" href="assets/app.css">
 </head>
@@ -23,9 +49,9 @@
         </button>
         <span class="logo-text">Laravel MCP</span>
         <div class="mobile-header-actions">
-            <button class="theme-toggle" aria-label="Toggle theme">
-                <span class="theme-icon dark">🌙</span>
-                <span class="theme-icon light">☀️</span>
+            <button class="theme-toggle" @click="darkMode = !darkMode" aria-label="Toggle theme">
+                <span class="theme-icon dark" x-show="!darkMode">🌙</span>
+                <span class="theme-icon light" x-show="darkMode">☀️</span>
             </button>
             <button id="search-toggle" class="icon-btn" aria-label="Search">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -46,13 +72,13 @@
                         <h1>Laravel MCP</h1>
                         <span class="version-badge">v2.0.0</span>
                     </div>
+                    </div>
+                    <button class="theme-toggle" @click="darkMode = !darkMode" aria-label="Toggle theme">
+                        <span class="theme-icon dark" x-show="!darkMode">🌙</span>
+                        <span class="theme-icon light" x-show="darkMode">☀️</span>
+                    </button>
                 </div>
-                <button class="theme-toggle" aria-label="Toggle theme">
-                    <span class="theme-icon dark">🌙</span>
-                    <span class="theme-icon light">☀️</span>
-                </button>
-            </div>
-            <button id="sidebar-search" class="search-btn">
+                <button id="sidebar-search" class="search-btn">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="11" cy="11" r="8"></circle>
                     <line x1="21" y1="21" x2="16.65" y2="16.65"></line>

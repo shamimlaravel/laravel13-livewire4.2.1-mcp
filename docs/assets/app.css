@@ -169,6 +169,34 @@
     stroke: #dee2e6;
 }
 
+/* ==================== Light Theme - Status Badges ==================== */
+[data-theme="light"] .status-badge.running {
+    background: rgba(217, 119, 6, 0.15);
+    color: #d97706;
+}
+
+[data-theme="light"] .status-badge.error {
+    background: rgba(220, 38, 38, 0.15);
+    color: #dc2626;
+}
+
+[data-theme="light"] .status-badge.success {
+    background: rgba(5, 150, 105, 0.15);
+    color: #059669;
+}
+
+[data-theme="light"] .search-result:hover {
+    border-color: var(--border-light);
+}
+
+[data-theme="light"] .sync-connector .connector-line {
+    background: #dee2e6;
+}
+
+[data-theme="light"] .sync-connector .connector-arrow {
+    color: #808090;
+}
+
 /* ==================== Theme Transitions ==================== */
 html {
     transition: background-color 0.3s ease, color 0.3s ease;
@@ -197,8 +225,7 @@ body {
     color: var(--text-primary);
     line-height: 1.6;
     min-height: 100vh;
-    display: grid;
-    grid-template-columns: var(--sidebar-width) 1fr;
+    overflow-x: hidden;
 }
 
 a {
@@ -326,7 +353,7 @@ pre code {
     border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow: visible;
     z-index: 100;
 }
 
@@ -616,7 +643,7 @@ pre code {
     background: var(--bg-secondary);
     border: 1px solid var(--border);
     border-radius: 12px;
-    overflow: hidden;
+    overflow: auto;
     margin: var(--space-lg) 0;
 }
 
@@ -1978,7 +2005,7 @@ pre code {
     justify-content: center;
     box-shadow: var(--shadow-lg);
     transition: all var(--transition-fast);
-    z-index: 100;
+    z-index: 150;
 }
 
 .back-to-top:hover {
@@ -2024,6 +2051,33 @@ pre code {
 /* ==================== Hidden Utility ==================== */
 .hidden {
     display: none !important;
+}
+
+/* ==================== Missing Utility Classes ==================== */
+.log-text {
+    flex: 1;
+}
+
+.tool-name {
+    flex: 1;
+}
+
+.sync-branches {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.toggle-switch label {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-left: var(--space-xs);
+    cursor: pointer;
+}
+
+.search-header svg {
+    stroke: var(--text-secondary);
+    flex-shrink: 0;
 }
 
 /* ==================== Search Highlight ==================== */
