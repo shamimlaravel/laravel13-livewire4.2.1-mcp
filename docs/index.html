@@ -22,23 +22,35 @@
             </svg>
         </button>
         <span class="logo-text">Laravel MCP</span>
-        <button id="search-toggle" class="icon-btn" aria-label="Search">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="11" cy="11" r="8"></circle>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
-        </button>
+        <div class="mobile-header-actions">
+            <button class="theme-toggle" aria-label="Toggle theme">
+                <span class="theme-icon dark">🌙</span>
+                <span class="theme-icon light">☀️</span>
+            </button>
+            <button id="search-toggle" class="icon-btn" aria-label="Search">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+            </button>
+        </div>
     </header>
 
     <!-- Sidebar Navigation -->
     <aside id="sidebar" class="sidebar">
         <div class="sidebar-header">
-            <div class="logo">
-                <span class="logo-icon">&#x1F680;</span>
-                <div class="logo-text-group">
-                    <h1>Laravel MCP</h1>
-                    <span class="version-badge">v2.0.0</span>
+            <div class="logo-row">
+                <div class="logo">
+                    <span class="logo-icon">&#x1F680;</span>
+                    <div class="logo-text-group">
+                        <h1>Laravel MCP</h1>
+                        <span class="version-badge">v2.0.0</span>
+                    </div>
                 </div>
+                <button class="theme-toggle" aria-label="Toggle theme">
+                    <span class="theme-icon dark">🌙</span>
+                    <span class="theme-icon light">☀️</span>
+                </button>
             </div>
             <button id="sidebar-search" class="search-btn">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

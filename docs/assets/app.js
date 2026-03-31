@@ -195,10 +195,6 @@ class NavigationSystem {
         this.sidebar.classList.remove('open');
     }
     
-    closeMobileMenu() {
-        this.sidebar.classList.remove('open');
-    }
-    
     setupScrollSpy() {
         const observerOptions = {
             root: null,
@@ -376,9 +372,51 @@ const Utils = {
     }
 };
 
+// ==================== Theme System ====================
+class ThemeSystem {
+    constructor() {
+        this.theme = localStorage.getItem('theme') || 'dark';
+        this.toggleBtns = document.querySelectorAll('.theme-toggle');
+        
+        this.init();
+    }
+    
+    init() {
+        // Apply saved theme
+        this.apply();
+        
+        // Bind toggle buttons
+        this.toggleBtns.forEach(btn => {
+            btn.addEventListener('click', () => this.toggle());
+        });
+    }
+    
+    toggle() {
+        this.theme = this.theme === 'dark' ? 'light' : 'dark';
+        this.apply();
+        localStorage.setItem('theme', this.theme);
+    }
+    
+    apply() {
+        document.documentElement.setAttribute('data-theme', this.theme);
+        
+        // Update toggle button states
+        this.toggleBtns.forEach(btn => {
+            const darkIcon = btn.querySelector('.theme-icon.dark');
+            const lightIcon = btn.querySelector('.theme-icon.light');
+            
+            if (darkIcon && lightIcon) {
+                darkIcon.style.display = this.theme === 'dark' ? 'none' : 'block';
+                lightIcon.style.display = this.theme === 'dark' ? 'block' : 'none';
+            }
+        });
+    }
+}
+
 // ==================== Initialize Everything ====================
 document.addEventListener('DOMContentLoaded', () => {
     // Initialize all systems
+    window.theme = new ThemeSystem();
     window.searchSystem = new SearchSystem();
     window.navigation = new NavigationSystem();
     window.copyCode = new CopyCodeSystem();
@@ -404,3 +442,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Export for use in other modules
 window.Utils = Utils;
+window.ThemeSystem = ThemeSystem;

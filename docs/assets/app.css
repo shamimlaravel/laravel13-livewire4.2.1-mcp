@@ -60,6 +60,51 @@
     --shadow-glow: 0 0 20px rgba(139, 92, 246, 0.3);
 }
 
+/* ==================== Light Theme ==================== */
+[data-theme="light"] {
+    /* Colors - Light Theme */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8f9fa;
+    --bg-tertiary: #e9ecef;
+    --bg-elevated: #ffffff;
+    
+    --text-primary: #1a1a2e;
+    --text-secondary: #4a4a5a;
+    --text-muted: #808090;
+    
+    --accent: #7c3aed;
+    --accent-hover: #6d28d9;
+    --accent-light: rgba(124, 58, 237, 0.1);
+    
+    --success: #059669;
+    --success-light: rgba(5, 150, 105, 0.1);
+    --warning: #d97706;
+    --warning-light: rgba(217, 119, 6, 0.1);
+    --error: #dc2626;
+    --error-light: rgba(220, 38, 38, 0.1);
+    --info: #2563eb;
+    --info-light: rgba(37, 99, 235, 0.1);
+    
+    --border: #dee2e6;
+    --border-light: #ced4da;
+    
+    /* Shadows - Light */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.15);
+    --shadow-glow: 0 0 20px rgba(124, 58, 237, 0.2);
+}
+
+/* ==================== Theme Transitions ==================== */
+html {
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+body, .sidebar, .content, .feature-card, .code-block, .simulation-container,
+.phase-card, .sync-operation, .stat-card, .activity-panel, .memory-panel, .versions-panel {
+    transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
 /* ==================== Reset & Base ==================== */
 *, *::before, *::after {
     box-sizing: border-box;
@@ -126,6 +171,20 @@ pre code {
     font-size: 1.1rem;
 }
 
+.mobile-header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+}
+
+.logo-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+}
+
 .icon-btn {
     background: transparent;
     border: none;
@@ -138,6 +197,48 @@ pre code {
 
 .icon-btn:hover {
     background: var(--bg-tertiary);
+}
+
+/* ==================== Theme Toggle ==================== */
+.theme-toggle {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+}
+
+.theme-toggle:hover {
+    background: var(--accent-light);
+    border-color: var(--accent);
+}
+
+.theme-icon {
+    position: absolute;
+    font-size: 1.2rem;
+    transition: opacity 0.3s ease;
+}
+
+.theme-icon.dark {
+    display: none;
+}
+
+.theme-icon.light {
+    display: block;
+}
+
+[data-theme="light"] .theme-icon.dark {
+    display: block;
+}
+
+[data-theme="light"] .theme-icon.light {
+    display: none;
 }
 
 /* ==================== Sidebar ==================== */
@@ -158,13 +259,13 @@ pre code {
 .sidebar-header {
     padding: var(--space-lg);
     border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
 }
 
 .logo {
     display: flex;
     align-items: center;
     gap: var(--space-sm);
-    margin-bottom: var(--space-md);
 }
 
 .logo-icon {
