@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laravel 13 + Livewire 4.2 MCP Server Documentation</title>
+    <meta name="description" content="58 AI-powered tools for full-stack Laravel development with planning, memory, bug fixing, versioning, and GitHub integration.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    <link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+    <!-- Mobile Header -->
+    <header class="mobile-header">
+        <button id="menu-toggle" class="icon-btn" aria-label="Toggle menu">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+        </button>
+        <span class="logo-text">Laravel MCP</span>
+        <button id="search-toggle" class="icon-btn" aria-label="Search">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+        </button>
+    </header>
+
+    <!-- Sidebar Navigation -->
+    <aside id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <span class="logo-icon">&#x1F680;</span>
+                <div class="logo-text-group">
+                    <h1>Laravel MCP</h1>
+                    <span class="version-badge">v2.0.0</span>
+                </div>
+            </div>
+            <button id="sidebar-search" class="search-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <span>Search</span>
+                <kbd>Ctrl+K</kbd>
+            </button>
+        </div>
+        
+        <nav class="sidebar-nav">
+            <!-- Getting Started -->
+            <section class="nav-section">
+                <h3 class="nav-title">Getting Started</h3>
+                <ul class="nav-list">
+                    <li><a href="#introduction" class="nav-link active">Introduction</a></li>
+                    <li><a href="#installation" class="nav-link">Installation</a></li>
+                    <li><a href="#configuration" class="nav-link">Configuration</a></li>
+                    <li><a href="#quick-start" class="nav-link">Quick Start</a></li>
+                </ul>
+            </section>
+
+            <!-- Interactive Demos -->
+            <section class="nav-section">
+                <h3 class="nav-title">Interactive Demos</h3>
+                <ul class="nav-list">
+                    <li><a href="#workflow-simulation" class="nav-link">Workflow Animation</a></li>
+                    <li><a href="#planning-simulator" class="nav-link">Planning Simulator</a></li>
+                    <li><a href="#auto-sync-diagram" class="nav-link">Auto-Sync Flow</a></li>
+                    <li><a href="#tool-chain-builder" class="nav-link">Tool Chain Builder</a></li>
+                    <li><a href="#status-dashboard" class="nav-link">Status Dashboard</a></li>
+                </ul>
+            </section>
+
+            <!-- Tools Reference -->
+            <section class="nav-section">
+                <h3 class="nav-title">Tools Reference</h3>
+                <ul class="nav-list">
+                    <li><a href="#tools-overview" class="nav-link">All 58 Tools</a></li>
+                    <li><a href="#planning-tools" class="nav-link">Planning</a></li>
+                    <li><a href="#code-generation-tools" class="nav-link">Code Generation</a></li>
+                    <li><a href="#bug-fixing-tools" class="nav-link">Bug Fixing</a></li>
+                    <li><a href="#github-tools" class="nav-link">GitHub Integration</a></li>
+                    <li><a href="#design-tools" class="nav-link">Design Conversion</a></li>
+                </ul>
+            </section>
+
+            <!-- Features -->
+            <section class="nav-section">
+                <h3 class="nav-title">Features</h3>
+                <ul class="nav-list">
+                    <li><a href="#auto-sync" class="nav-link">Auto-Sync Behavior</a></li>
+                    <li><a href="#memory-rag" class="nav-link">Memory & RAG</a></li>
+                    <li><a href="#security" class="nav-link">Security Features</a></li>
+                </ul>
+            </section>
+        </nav>
+
+        <div class="sidebar-footer">
+            <a href="https://github.com/shamimlaravel/laravel13-livewire4.2.1-mcp" target="_blank" class="github-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                </svg>
+                <span>GitHub</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="content">
+        <!-- Introduction Section -->
+        <section id="introduction" class="section hero-section">
+            <div class="hero-content">
+                <h1 class="hero-title">Laravel 13 + Livewire 4.2 MCP Server</h1>
+                <p class="hero-subtitle">58 AI-powered tools for full-stack Laravel development with planning, memory, bug fixing, versioning, and GitHub integration.</p>
+                
+                <div class="badges">
+                    <span class="badge badge-primary">v2.0.0</span>
+                    <span class="badge badge-secondary">58 Tools</span>
+                    <span class="badge badge-tertiary">MIT License</span>
+                    <span class="badge badge-success">Auto-Sync</span>
+                </div>
+
+                <div class="hero-actions">
+                    <a href="#installation" class="btn btn-primary">Get Started</a>
+                    <a href="#workflow-simulation" class="btn btn-secondary">Try Demo</a>
+                </div>
+            </div>
+
+            <!-- Feature Cards -->
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">&#x1F4CB;</div>
+                    <h3>Planning System</h3>
+                    <p>Full-stack plans with phases, tasks, and auto-completion tracking.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">&#x1F4BE;</div>
+                    <h3>Memory & RAG</h3>
+                    <p>Persistent project state with endpoint memorization and context recall.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">&#x1F41B;</div>
+                    <h3>Bug Fixing</h3>
+                    <p>Auto-detect and fix bugs with security audits and prevention rules.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">&#x1F504;</div>
+                    <h3>Auto-Sync</h3>
+                    <p>Automatic git commits, pushes, and version tags on task completion.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">&#x1F680;</div>
+                    <h3>GitHub Integration</h3>
+                    <p>Full workflow: commits, PRs, issues, releases, and CI/CD setup.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">&#x1F3A8;</div>
+                    <h3>Design Conversion</h3>
+                    <p>Convert HTML, images, Figma, and Google Stitch to Livewire components.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Installation Section -->
+        <section id="installation" class="section">
+            <h2>Installation</h2>
+            <p class="section-desc">Get started with the Laravel MCP Server in minutes.</p>
+
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-lang">bash</span>
+                    <button class="copy-btn" data-code="install">Copy</button>
+                </div>
+                <pre><code class="language-bash"># Clone the repository
+git clone https://github.com/shamimlaravel/laravel13-livewire4.2.1-mcp.git
+cd laravel13-livewire4.2.1-mcp
+
+# Install dependencies
+npm install
+
+# Start the MCP server
+npm start</code></pre>
+            </div>
+
+            <div class="info-box">
+                <div class="info-icon">&#x2139;</div>
+                <div class="info-content">
+                    <strong>Requirements:</strong>
+                    <ul>
+                        <li>Node.js >= 18.0.0</li>
+                        <li>PHP >= 8.4 (for Laravel projects)</li>
+                        <li>Laravel >= 13.2</li>
+                        <li>Livewire >= 4.2.1</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Configuration Section -->
+        <section id="configuration" class="section">
+            <h2>Configuration</h2>
+            <p class="section-desc">Configure the MCP server in your project.</p>
+
+            <h3>Add to mcp-config.json</h3>
+            <div class="code-block">
+                <div class="code-header">
+                    <span class="code-lang">json</span>
+                    <button class="copy-btn" data-code="config">Copy</button>
+                </div>
+                <pre><code class="language-json">{
+  "mcpServers": {
+    "laravel13-livewire4.2.1-mcp": {
+      "command": "node",
+      "args": ["laravel13-livewire4.2.1-mcp/src/index.js"],
+      "description": "MCP Server for Livewire v4.2+ / Laravel 13"
+    }
+  }
+}</code></pre>
+            </div>
+        </section>
+
+        <!-- Workflow Simulation Section -->
+        <section id="workflow-simulation" class="section simulation-section">
+            <h2>&#x1F504; Workflow Animation</h2>
+            <p class="section-desc">Watch how MCP tools execute in real-time. Click "Play" to start the simulation.</p>
+
+            <div class="simulation-container" id="workflow-container">
+                <!-- Workflow diagram will be rendered here -->
+                <div class="diagram-canvas" id="workflow-diagram">
+                    <svg id="workflow-svg" width="100%" height="350" viewBox="0 0 900 350">
+                        <!-- Connection lines -->
+                        <defs>
+                            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#8b5cf6"/>
+                            </marker>
+                            <linearGradient id="flowGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#06b6d4;stop-opacity:1" />
+                            </linearGradient>
+                        </defs>
+                        
+                        <!-- Connections -->
+                        <g class="connections">
+                            <path id="conn-1" class="connection-line" d="M150,175 L230,175" marker-end="url(#arrowhead)"/>
+                            <path id="conn-2" class="connection-line" d="M370,175 L430,175" marker-end="url(#arrowhead)"/>
+                            <path id="conn-3" class="connection-line" d="M550,175 L620,175" marker-end="url(#arrowhead)"/>
+                            <path id="conn-4" class="connection-line" d="M760,175 L820,175" marker-end="url(#arrowhead)"/>
+                        </g>
+
+                        <!-- User Node -->
+                        <g class="diagram-node" id="node-user" transform="translate(50, 150)">
+                            <rect class="node-bg" width="100" height="50" rx="8"/>
+                            <text class="node-label" x="50" y="30">&#x1F464; User</text>
+                        </g>
+
+                        <!-- MCP Server Node -->
+                        <g class="diagram-node" id="node-server" transform="translate(230, 150)">
+                            <rect class="node-bg" width="140" height="50" rx="8"/>
+                            <text class="node-label" x="70" y="30">&#x26A1; MCP Server</text>
+                        </g>
+
+                        <!-- Tool Selection Node -->
+                        <g class="diagram-node diamond" id="node-select" transform="translate(430, 150)">
+                            <polygon class="node-bg" points="60,0 120,30 60,60 0,30"/>
+                            <text class="node-label" x="60" y="35">&#x1F527; Select</text>
+                        </g>
+
+                        <!-- Tool Nodes Group -->
+                        <g class="tool-nodes" transform="translate(620, 50)">
+                            <g class="diagram-node tool-node" id="node-generate" transform="translate(0, 0)">
+                                <rect class="node-bg" width="140" height="40" rx="6"/>
+                                <text class="node-label" x="70" y="25">generate_*</text>
+                            </g>
+                            <g class="diagram-node tool-node" id="node-fix" transform="translate(0, 60)">
+                                <rect class="node-bg" width="140" height="40" rx="6"/>
+                                <text class="node-label" x="70" y="25">fix_bugs</text>
+                            </g>
+                            <g class="diagram-node tool-node" id="node-git" transform="translate(0, 120)">
+                                <rect class="node-bg" width="140" height="40" rx="6"/>
+                                <text class="node-label" x="70" y="25">git_*</text>
+                            </g>
+                            <g class="diagram-node tool-node" id="node-convert" transform="translate(0, 180)">
+                                <rect class="node-bg" width="140" height="40" rx="6"/>
+                                <text class="node-label" x="70" y="25">convert_*</text>
+                            </g>
+                        </g>
+
+                        <!-- Response Node -->
+                        <g class="diagram-node" id="node-response" transform="translate(820, 150)">
+                            <rect class="node-bg" width="100" height="50" rx="8"/>
+                            <text class="node-label" x="50" y="30">&#x2705; Done</text>
+                        </g>
+
+                        <!-- Animated Data Packet -->
+                        <g id="data-packet" class="data-packet" opacity="0">
+                            <circle r="15" fill="url(#flowGradient)"/>
+                            <text y="5" text-anchor="middle" fill="white" font-size="12">&#x1F4E6;</text>
+                        </g>
+                    </svg>
+                </div>
+
+                <!-- Controls -->
+                <div class="simulation-controls">
+                    <div class="control-group">
+                        <button id="play-btn" class="btn btn-primary">
+                            <span>&#x25B6;</span> Play
+                        </button>
+                        <button id="pause-btn" class="btn btn-secondary" disabled>
+                            <span>&#x23F8;</span> Pause
+                        </button>
+                        <button id="reset-btn" class="btn btn-secondary">
+                            <span>&#x1F504;</span> Reset
+                        </button>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>Speed:</label>
+                        <input type="range" id="speed-slider" min="0.5" max="3" step="0.5" value="1">
+                        <span id="speed-value">1.0x</span>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>Workflow:</label>
+                        <select id="workflow-select">
+                            <option value="generate">Generate Component</option>
+                            <option value="fixbugs">Fix Bugs</option>
+                            <option value="fullproject">Full Project</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Step Log -->
+                <div class="step-log">
+                    <h4>&#x1F4CB; Execution Log</h4>
+                    <div id="log-entries" class="log-entries">
+                        <div class="log-entry waiting">
+                            <span class="log-icon">&#x23F3;</span>
+                            <span class="log-text">Waiting to start...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Progress Info -->
+                <div class="progress-info">
+                    <div class="info-card">
+                        <span class="info-label">Current Step</span>
+                        <span id="current-step" class="info-value">-</span>
+                    </div>
+                    <div class="info-card">
+                        <span class="info-label">Progress</span>
+                        <div class="progress-bar-container">
+                            <div id="progress-fill" class="progress-fill" style="width: 0%"></div>
+                        </div>
+                        <span id="progress-text" class="progress-text">0%</span>
+                    </div>
+                    <div class="info-card">
+                        <span class="info-label">Status</span>
+                        <span id="status-badge" class="status-badge idle">Idle</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Planning Simulator Section -->
+        <section id="planning-simulator" class="section simulation-section">
+            <h2>&#x1F4CB; Planning Simulator</h2>
+            <p class="section-desc">Interactive project planning with phases, tasks, and auto-sync visualization.</p>
+
+            <div class="simulation-container" id="planner-container">
+                <div class="planner-header">
+                    <div class="project-info">
+                        <h3 id="project-name">SaaS Dashboard</h3>
+                        <span class="project-type">Type: SaaS</span>
+                    </div>
+                    <div class="planner-actions">
+                        <button id="simulate-project" class="btn btn-primary">&#x25B6; Simulate Project</button>
+                        <button id="reset-planner" class="btn btn-secondary">&#x1F504; Reset</button>
+                    </div>
+                </div>
+
+                <div id="phases-container" class="phases-container">
+                    <!-- Phases will be rendered here -->
+                </div>
+
+                <div class="overall-progress">
+                    <span class="progress-label">Overall Progress</span>
+                    <div class="progress-bar-large">
+                        <div id="overall-progress-fill" class="progress-fill" style="width: 0%"></div>
+                    </div>
+                    <span id="overall-progress-text" class="progress-percent">0%</span>
+                </div>
+
+                <!-- Git Sync Visualization -->
+                <div id="sync-visualization" class="sync-visualization hidden">
+                    <h4>&#x1F504; Auto-Sync in Progress</h4>
+                    <div id="sync-steps" class="sync-steps">
+                        <!-- Sync steps will be rendered here -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Auto-Sync Diagram Section -->
+        <section id="auto-sync-diagram" class="section simulation-section">
+            <h2>&#x1F504; Auto-Sync Flow Diagram</h2>
+            <p class="section-desc">Visualize how git operations are triggered automatically.</p>
+
+            <div class="simulation-container" id="sync-container">
+                <div class="sync-diagram">
+                    <!-- Sync Flow -->
+                    <div class="sync-flow" id="sync-flow">
+                        <div class="sync-trigger">
+                            <div class="trigger-icon">&#x2714;</div>
+                            <span>Task Complete</span>
+                        </div>
+                        
+                        <div class="sync-connector">
+                            <div class="connector-line"></div>
+                            <div class="connector-arrow">&#x2193;</div>
+                        </div>
+
+                        <div class="sync-operation" id="sync-add">
+                            <div class="op-header">
+                                <span class="op-icon">&#x1F4C1;</span>
+                                <span class="op-name">git add .</span>
+                            </div>
+                            <div class="op-progress">
+                                <div class="op-progress-bar" style="width: 0%"></div>
+                            </div>
+                            <div class="op-status">Waiting...</div>
+                        </div>
+
+                        <div class="sync-connector">
+                            <div class="connector-line"></div>
+                            <div class="connector-arrow">&#x2193;</div>
+                        </div>
+
+                        <div class="sync-operation" id="sync-commit">
+                            <div class="op-header">
+                                <span class="op-icon">&#x1F4BE;</span>
+                                <span class="op-name">git commit</span>
+                            </div>
+                            <div class="op-progress">
+                                <div class="op-progress-bar" style="width: 0%"></div>
+                            </div>
+                            <div class="op-status">Waiting...</div>
+                        </div>
+
+                        <div class="sync-connector">
+                            <div class="connector-line"></div>
+                            <div class="connector-arrow">&#x2193;</div>
+                        </div>
+
+                        <div class="sync-operation" id="sync-push">
+                            <div class="op-header">
+                                <span class="op-icon">&#x2B06;</span>
+                                <span class="op-name">git push</span>
+                            </div>
+                            <div class="op-progress">
+                                <div class="op-progress-bar" style="width: 0%"></div>
+                            </div>
+                            <div class="op-status">Waiting...</div>
+                        </div>
+
+                        <!-- Conditional: Phase Complete -->
+                        <div class="sync-connector conditional" id="phase-check">
+                            <div class="connector-line"></div>
+                            <div class="connector-arrow">&#x2193;</div>
+                            <div class="condition-label">Phase Complete?</div>
+                        </div>
+
+                        <div class="sync-branches" id="sync-branches">
+                            <div class="branch-yes hidden" id="branch-yes">
+                                <div class="sync-operation" id="sync-tag">
+                                    <div class="op-header">
+                                        <span class="op-icon">&#x1F3F7;</span>
+                                        <span class="op-name">git tag v0.X.0</span>
+                                    </div>
+                                    <div class="op-progress">
+                                        <div class="op-progress-bar" style="width: 0%"></div>
+                                    </div>
+                                    <div class="op-status">Waiting...</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="sync-final">
+                            <div class="final-icon">&#x2705;</div>
+                            <span>Ready for Next Task</span>
+                        </div>
+                    </div>
+
+                    <!-- Sync Controls -->
+                    <div class="sync-controls">
+                        <div class="toggle-switch">
+                            <input type="checkbox" id="auto-sync-toggle" checked>
+                            <label for="auto-sync-toggle">Auto-Sync</label>
+                        </div>
+                        <button id="simulate-sync" class="btn btn-primary">&#x25B6; Simulate Sync</button>
+                    </div>
+
+                    <!-- Sync Stats -->
+                    <div class="sync-stats">
+                        <div class="stat">
+                            <span class="stat-value" id="sync-count">0</span>
+                            <span class="stat-label">Today's Syncs</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-value" id="branch-name">main</span>
+                            <span class="stat-label">Current Branch</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-value" id="last-sync">Never</span>
+                            <span class="stat-label">Last Sync</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tool Chain Builder Section -->
+        <section id="tool-chain-builder" class="section simulation-section">
+            <h2>&#x1F527; Tool Chain Builder</h2>
+            <p class="section-desc">Drag and drop tools to build custom workflows.</p>
+
+            <div class="simulation-container" id="builder-container">
+                <div class="builder-layout">
+                    <!-- Toolbox -->
+                    <div class="toolbox">
+                        <h3>Available Tools</h3>
+                        
+                        <div class="tool-category">
+                            <h4>&#x1F4CB; Planning</h4>
+                            <div class="tool-list">
+                                <div class="tool-item" draggable="true" data-tool="generate_plan">
+                                    <span class="tool-icon">&#x1F4CB;</span>
+                                    <span class="tool-name">generate_plan</span>
+                                </div>
+                                <div class="tool-item" draggable="true" data-tool="update_task_status">
+                                    <span class="tool-icon">&#x2714;</span>
+                                    <span class="tool-name">update_task_status</span>
+                                </div>
+                                <div class="tool-item" draggable="true" data-tool="get_project_status">
+                                    <span class="tool-icon">&#x1F4CA;</span>
+                                    <span class="tool-name">get_project_status</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tool-category">
+                            <h4>&#x1F527; Code Generation</h4>
+                            <div class="tool-list">
+                                <div class="tool-item" draggable="true" data-tool="generate_component">
+                                    <span class="tool-icon">&#x1F9E9;</span>
+                                    <span class="tool-name">generate_livewire_component</span>
+                                </div>
+                                <div class="tool-item" draggable="true" data-tool="generate_crud">
+                                    <span class="tool-icon">&#x1F4DD;</span>
+                                    <span class="tool-name">generate_crud_component</span>
+                                </div>
+                                <div class="tool-item" draggable="true" data-tool="generate_model">
+                                    <span class="tool-icon">&#x1F5C4;</span>
+                                    <span class="tool-name">generate_eloquent_model</span>
+                                </div>
+                                <div class="tool-item" draggable="true" data-tool="generate_layout">
+                                    <span class="tool-icon">&#x1F3A8;</span>
+                                    <span class="tool-name">generate_layout</span>
+                                </div>
+                                <div class="tool-item" draggable="true" data-tool="generate_routes">
+                                    <span class="tool-icon">&#x1F6E4;</span>
+                                    <span class="tool-name">generate_routes</span>
+                                </div>
+                                <div class="tool-item" draggable="true" data-tool="generate_test">
+                                    <span class="tool-icon">&#x1F9EA;</span>
+                                    <span class="tool-name">generate_test</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tool-category">
+                            <h4>&#x1F41B; Bug Fixing</h4>
+                            <div class="tool-list">
+                                <div class="tool-item" draggable="true" data-tool="fix_bugs">
+                                    <span class="tool-icon">&#x1F41B;</span>
+                                    <span class="tool-name">fix_bugs</span>
+                                </div>
+                                <div class="tool-item" draggable="true" data-tool="security_audit">
+                                    <span class="tool-icon">&#x1F512;</span>
+                                    <span class="tool-name">security_audit</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tool-category">
+                            <h4>&#x1F504; GitHub</h4>
+                            <div class="tool-list">
+                                <div class="tool-item" draggable="true" data-tool="git_commit">
+                                    <span class="tool-icon">&#x1F4BE;</span>
+                                    <span class="tool-name">git_commit</span>
+                                </div>
+                                <div class="tool-item" draggable="true" data-tool="git_push">
+                                    <span class="tool-icon">&#x2B06;</span>
+                                    <span class="tool-name">git_push</span>
+                                </div>
+                                <div class="tool-item" draggable="true" data-tool="git_tag">
+                                    <span class="tool-icon">&#x1F3F7;</span>
+                                    <span class="tool-name">git_tag_create</span>
+                                </div>
+                                <div class="tool-item" draggable="true" data-tool="gh_pr">
+                                    <span class="tool-icon">&#x1F500;</span>
+                                    <span class="tool-name">gh_pr_create</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tool-category">
+                            <h4>&#x1F3A8; Design</h4>
+                            <div class="tool-list">
+                                <div class="tool-item" draggable="true" data-tool="convert_html">
+                                    <span class="tool-icon">&#x1F5BC;</span>
+                                    <span class="tool-name">convert_html_to_livewire</span>
+                                </div>
+                                <div class="tool-item" draggable="true" data-tool="convert_figma">
+                                    <span class="tool-icon">&#x1F3A8;</span>
+                                    <span class="tool-name">convert_figma_to_livewire</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Workflow Canvas -->
+                    <div class="workflow-canvas">
+                        <h3>Your Workflow</h3>
+                        
+                        <div id="workflow-dropzone" class="dropzone">
+                            <div class="dropzone-placeholder" id="dropzone-placeholder">
+                                <span class="placeholder-icon">&#x1F4E6;</span>
+                                <span>Drag tools here to build your workflow</span>
+                            </div>
+                            <div id="workflow-chain" class="workflow-chain">
+                                <!-- Workflow nodes will be rendered here -->
+                            </div>
+                        </div>
+
+                        <div class="workflow-actions">
+                            <button id="run-workflow" class="btn btn-primary" disabled>
+                                <span>&#x25B6;</span> Run Workflow
+                            </button>
+                            <button id="clear-workflow" class="btn btn-secondary">
+                                <span>&#x1F5D1;</span> Clear
+                            </button>
+                            <button id="save-workflow" class="btn btn-secondary">
+                                <span>&#x1F4BE;</span> Save
+                            </button>
+                        </div>
+
+                        <!-- Workflow execution log -->
+                        <div class="workflow-log">
+                            <h4>Execution Log</h4>
+                            <div id="workflow-log-entries" class="log-entries">
+                                <div class="log-entry waiting">
+                                    <span class="log-text">Workflow not started</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Status Dashboard Section -->
+        <section id="status-dashboard" class="section simulation-section">
+            <h2>&#x1F4CA; Status Dashboard</h2>
+            <p class="section-desc">Real-time project status monitoring with live updates.</p>
+
+            <div class="simulation-container" id="dashboard-container">
+                <!-- Stats Grid -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-icon">&#x1F4CB;</span>
+                            <span class="stat-title">Tasks</span>
+                        </div>
+                        <div class="stat-value"><span id="tasks-completed">0</span>/<span id="tasks-total">32</span></div>
+                        <div class="stat-progress">
+                            <div class="progress-bar-small">
+                                <div id="tasks-progress-fill" class="progress-fill" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-icon">&#x1F41B;</span>
+                            <span class="stat-title">Bugs</span>
+                        </div>
+                        <div class="stat-value"><span id="bugs-open">3</span> open</div>
+                        <div class="stat-sub"><span id="bugs-fixed">0</span> fixed</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-icon">&#x1F504;</span>
+                            <span class="stat-title">Syncs</span>
+                        </div>
+                        <div class="stat-value" id="sync-total">0</div>
+                        <div class="stat-sub">Today</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-icon">&#x1F4E6;</span>
+                            <span class="stat-title">Version</span>
+                        </div>
+                        <div class="stat-value" id="current-version">v0.0.0</div>
+                        <div class="stat-sub">Latest</div>
+                    </div>
+                </div>
+
+                <!-- Activity Panel -->
+                <div class="dashboard-row">
+                    <div class="activity-panel">
+                        <h3>&#x1F4DC; Recent Activity</h3>
+                        <div id="activity-list" class="activity-list">
+                            <!-- Activity items will be rendered here -->
+                        </div>
+                    </div>
+
+                    <div class="side-panels">
+                        <!-- Memory Panel -->
+                        <div class="memory-panel">
+                            <h3>&#x1F9E0; Memory & RAG</h3>
+                            <div class="memory-stats">
+                                <div class="memory-stat">
+                                    <span class="memory-value" id="endpoints-count">45</span>
+                                    <span class="memory-label">Endpoints</span>
+                                </div>
+                                <div class="memory-stat">
+                                    <span class="memory-value" id="decisions-count">23</span>
+                                    <span class="memory-label">Decisions</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Version History -->
+                        <div class="versions-panel">
+                            <h3>&#x1F4C5; Version History</h3>
+                            <div id="versions-list" class="versions-list">
+                                <!-- Versions will be rendered here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dashboard Controls -->
+                <div class="dashboard-controls">
+                    <button id="simulate-activity" class="btn btn-primary">&#x25B6; Simulate Activity</button>
+                    <button id="reset-dashboard" class="btn btn-secondary">&#x1F504; Reset</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tools Overview Section -->
+        <section id="tools-overview" class="section">
+            <h2>All 58 MCP Tools</h2>
+            <p class="section-desc">Complete reference of all available tools.</p>
+
+            <div class="table-wrapper">
+                <table class="tools-table">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Tool Name</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Planning Tools -->
+                        <tr>
+                            <td><span class="category-badge planning">Planning</span></td>
+                            <td><code>generate_plan</code></td>
+                            <td>Generate full-stack project plans with phases and tasks</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge planning">Planning</span></td>
+                            <td><code>update_task_status</code></td>
+                            <td>Update task status with auto-git-sync on completion</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge planning">Planning</span></td>
+                            <td><code>get_project_status</code></td>
+                            <td>Show progress percentage, phases, and task status</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge planning">Planning</span></td>
+                            <td><code>continue_project</code></td>
+                            <td>Resume interrupted session with full context</td>
+                        </tr>
+
+                        <!-- Code Generation Tools -->
+                        <tr>
+                            <td><span class="category-badge code">Code Gen</span></td>
+                            <td><code>generate_livewire_component</code></td>
+                            <td>Generate SFC/MFC/Class-based Livewire components</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge code">Code Gen</span></td>
+                            <td><code>generate_crud_component</code></td>
+                            <td>Complete CRUD with modal, pagination, search</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge code">Code Gen</span></td>
+                            <td><code>generate_data_table</code></td>
+                            <td>Data table with sorting, filtering, bulk actions</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge code">Code Gen</span></td>
+                            <td><code>generate_form_component</code></td>
+                            <td>Forms with relationships, file uploads, validation</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge code">Code Gen</span></td>
+                            <td><code>generate_layout</code></td>
+                            <td>Blade layouts (base/app/guest/admin/tenant)</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge code">Code Gen</span></td>
+                            <td><code>generate_eloquent_model</code></td>
+                            <td>Laravel 13 models with PHP attributes</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge code">Code Gen</span></td>
+                            <td><code>generate_routes</code></td>
+                            <td>Routes with middleware groups and named routes</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge code">Code Gen</span></td>
+                            <td><code>generate_test</code></td>
+                            <td>Comprehensive Pest tests with assertions</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge code">Code Gen</span></td>
+                            <td><code>generate_modal_component</code></td>
+                            <td>Reusable modals (confirm, delete, form, alert)</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge code">Code Gen</span></td>
+                            <td><code>generate_file_upload_component</code></td>
+                            <td>File upload with preview, validation, progress</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge code">Code Gen</span></td>
+                            <td><code>generate_search_filter_component</code></td>
+                            <td>Multi-field search/filter with date range</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge code">Code Gen</span></td>
+                            <td><code>generate_chart_widget</code></td>
+                            <td>Dashboard charts/widgets (stats, line, bar, pie)</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge code">Code Gen</span></td>
+                            <td><code>generate_policy</code></td>
+                            <td>Policy classes for model authorization</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge code">Code Gen</span></td>
+                            <td><code>generate_observer</code></td>
+                            <td>Model observers for event handling</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge code">Code Gen</span></td>
+                            <td><code>generate_trait</code></td>
+                            <td>Reusable traits (HasSlug, HasTenant, Sortable)</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge code">Code Gen</span></td>
+                            <td><code>generate_middleware</code></td>
+                            <td>HTTP middleware (Admin, Tenant, RateLimit)</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge code">Code Gen</span></td>
+                            <td><code>generate_service_class</code></td>
+                            <td>Service classes for business logic</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge code">Code Gen</span></td>
+                            <td><code>generate_project_structure</code></td>
+                            <td>Enterprise/SaaS/API project structure</td>
+                        </tr>
+
+                        <!-- Bug Fixing Tools -->
+                        <tr>
+                            <td><span class="category-badge bugs">Bug Fix</span></td>
+                            <td><code>fix_bugs</code></td>
+                            <td>Auto-detect and fix bugs in code</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge bugs">Bug Fix</span></td>
+                            <td><code>deep_scan_bugs</code></td>
+                            <td>Deep scan for bugs in tables, lists, files</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge bugs">Bug Fix</span></td>
+                            <td><code>scan_project_bugs</code></td>
+                            <td>Scan entire project directory for bugs</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge bugs">Bug Fix</span></td>
+                            <td><code>get_open_bugs</code></td>
+                            <td>Get list of all open (unfixed) bugs</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge bugs">Bug Fix</span></td>
+                            <td><code>get_fixed_bugs</code></td>
+                            <td>Get list of all fixed bugs</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge bugs">Bug Fix</span></td>
+                            <td><code>mark_bug_fixed</code></td>
+                            <td>Mark a bug as fixed by ID</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge bugs">Bug Fix</span></td>
+                            <td><code>security_audit</code></td>
+                            <td>Audit code for XSS, SQL injection, CSRF</td>
+                        </tr>
+
+                        <!-- Memory Tools -->
+                        <tr>
+                            <td><span class="category-badge memory">Memory</span></td>
+                            <td><code>memorize_endpoint</code></td>
+                            <td>Memorize API endpoints for RAG</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge memory">Memory</span></td>
+                            <td><code>memorize</code></td>
+                            <td>Store key-value project memories</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge memory">Memory</span></td>
+                            <td><code>recall_context</code></td>
+                            <td>Recall memorized endpoints and decisions</td>
+                        </tr>
+
+                        <!-- Version Control Tools -->
+                        <tr>
+                            <td><span class="category-badge version">Version</span></td>
+                            <td><code>create_version</code></td>
+                            <td>Create version snapshot</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge version">Version</span></td>
+                            <td><code>list_versions</code></td>
+                            <td>List all versions</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge version">Version</span></td>
+                            <td><code>restore_version</code></td>
+                            <td>Restore to previous version</td>
+                        </tr>
+
+                        <!-- GitHub Tools -->
+                        <tr>
+                            <td><span class="category-badge github">GitHub</span></td>
+                            <td><code>gh_auth_status</code></td>
+                            <td>Check GitHub CLI authentication</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge github">GitHub</span></td>
+                            <td><code>gh_auth_login</code></td>
+                            <td>Authenticate with GitHub</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge github">GitHub</span></td>
+                            <td><code>gh_repo_create</code></td>
+                            <td>Create GitHub repository</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge github">GitHub</span></td>
+                            <td><code>git_commit</code></td>
+                            <td>Auto-generate conventional commit messages</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge github">GitHub</span></td>
+                            <td><code>git_push</code></td>
+                            <td>Push to remote repository</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge github">GitHub</span></td>
+                            <td><code>git_pull</code></td>
+                            <td>Pull from remote repository</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge github">GitHub</span></td>
+                            <td><code>git_tag_create</code></td>
+                            <td>Create annotated version tags</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge github">GitHub</span></td>
+                            <td><code>git_tag_list</code></td>
+                            <td>List all tags</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge github">GitHub</span></td>
+                            <td><code>git_status</code></td>
+                            <td>Show git status</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge github">GitHub</span></td>
+                            <td><code>git_branch_create</code></td>
+                            <td>Create new branch</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge github">GitHub</span></td>
+                            <td><code>git_branch_list</code></td>
+                            <td>List all branches</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge github">GitHub</span></td>
+                            <td><code>git_branch_merge</code></td>
+                            <td>Merge branch</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge github">GitHub</span></td>
+                            <td><code>git_branch_delete</code></td>
+                            <td>Delete branch</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge github">GitHub</span></td>
+                            <td><code>gh_pr_create</code></td>
+                            <td>Create Pull Request</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge github">GitHub</span></td>
+                            <td><code>gh_pr_list</code></td>
+                            <td>List Pull Requests</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge github">GitHub</span></td>
+                            <td><code>gh_pr_merge</code></td>
+                            <td>Merge Pull Request</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge github">GitHub</span></td>
+                            <td><code>gh_issue_create</code></td>
+                            <td>Create GitHub Issue</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge github">GitHub</span></td>
+                            <td><code>gh_issue_list</code></td>
+                            <td>List GitHub Issues</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge github">GitHub</span></td>
+                            <td><code>gh_release_create</code></td>
+                            <td>Create GitHub Release</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge github">GitHub</span></td>
+                            <td><code>gh_ci_setup</code></td>
+                            <td>Setup GitHub Actions CI</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge github">GitHub</span></td>
+                            <td><code>git_sync</code></td>
+                            <td>Manual sync (commit + push)</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge github">GitHub</span></td>
+                            <td><code>git_auto_sync_toggle</code></td>
+                            <td>Toggle auto-sync on task completion</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge github">GitHub</span></td>
+                            <td><code>git_full_setup</code></td>
+                            <td>Full workflow: auth->init->create->commit->push->tag</td>
+                        </tr>
+
+                        <!-- Design Tools -->
+                        <tr>
+                            <td><span class="category-badge design">Design</span></td>
+                            <td><code>convert_html_to_livewire</code></td>
+                            <td>Convert static HTML to Livewire components</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge design">Design</span></td>
+                            <td><code>convert_image_to_livewire</code></td>
+                            <td>Image/mockup to Livewire component</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge design">Design</span></td>
+                            <td><code>convert_stitch_to_livewire</code></td>
+                            <td>Google Stitch to Livewire component</td>
+                        </tr>
+                        <tr>
+                            <td><span class="category-badge design">Design</span></td>
+                            <td><code>convert_figma_to_livewire</code></td>
+                            <td>Figma design to Livewire component</td>
+                        </tr>
+
+                        <!-- Installation Tool -->
+                        <tr>
+                            <td><span class="category-badge install">Install</span></td>
+                            <td><code>install_laravel</code></td>
+                            <td>Laravel install + PHP 8.4 upgrade commands</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Auto-Sync Section -->
+        <section id="auto-sync" class="section">
+            <h2>Auto-Sync Behavior</h2>
+            <p class="section-desc">Understanding how automatic git synchronization works.</p>
+
+            <div class="feature-grid three-col">
+                <div class="feature-card sync-card">
+                    <div class="sync-icon">&#x2714;</div>
+                    <h4>Task Completion</h4>
+                    <p>Task done → git add . → git commit → git push</p>
+                    <div class="sync-example">
+                        <code>update_task_status("complete")</code>
+                    </div>
+                </div>
+                <div class="feature-card sync-card">
+                    <div class="sync-icon">&#x1F3F7;</div>
+                    <h4>Phase Completion</h4>
+                    <p>Phase done → commit → push → tag v0.X.0</p>
+                    <div class="sync-example">
+                        <code>Phase 2 Complete → v0.2.0</code>
+                    </div>
+                </div>
+                <div class="feature-card sync-card">
+                    <div class="sync-icon">&#x1F680;</div>
+                    <h4>Project 100%</h4>
+                    <p>All done → commit → push → tag v1.0.0 → Release</p>
+                    <div class="sync-example">
+                        <code>gh release create v1.0.0</code>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-content">
+                <p>MIT License</p>
+                <p>
+                    <a href="https://github.com/shamimlaravel/laravel13-livewire4.2.1-mcp" target="_blank">GitHub</a>
+                    <span class="separator">|</span>
+                    <a href="https://github.com/shamimlaravel/laravel13-livewire4.2.1-mcp/issues" target="_blank">Issues</a>
+                </p>
+                <p class="copyright">Built with &#x2764; for Laravel developers</p>
+            </div>
+        </footer>
+    </main>
+
+    <!-- Search Modal -->
+    <div id="search-modal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="search-header">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input type="text" id="search-input" placeholder="Search documentation..." autocomplete="off">
+                <kbd>ESC</kbd>
+            </div>
+            <div id="search-results" class="search-results">
+                <!-- Search results will be rendered here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Back to Top Button -->
+    <button id="back-to-top" class="back-to-top hidden" aria-label="Back to top">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="18 15 12 9 6 15"></polyline>
+        </svg>
+    </button>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="assets/app.js"></script>
+    <script src="assets/workflow.js"></script>
+    <script src="assets/planner.js"></script>
+    <script src="assets/sync.js"></script>
+    <script src="assets/builder.js"></script>
+    <script src="assets/dashboard.js"></script>
+</body>
+</html>
