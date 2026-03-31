@@ -95,6 +95,80 @@
     --shadow-glow: 0 0 20px rgba(124, 58, 237, 0.2);
 }
 
+/* ==================== Light Theme Overrides ==================== */
+[data-theme="light"] code {
+    background: #e9ecef;
+    color: #1a1a2e;
+}
+
+[data-theme="light"] .code-block {
+    background: #f8f9fa;
+}
+
+[data-theme="light"] .code-block pre {
+    background: #ffffff;
+}
+
+[data-theme="light"] mark {
+    background: rgba(124, 58, 237, 0.2);
+    color: #1a1a2e;
+    padding: 0 4px;
+    border-radius: 3px;
+    font-weight: 500;
+}
+
+[data-theme="light"] .search-result:hover {
+    background: #f8f9fa;
+}
+
+[data-theme="light"] .sync-operation .op-progress {
+    background: #e9ecef;
+}
+
+[data-theme="light"] .progress-bar-container,
+[data-theme="light"] .progress-bar,
+[data-theme="light"] .progress-bar-small {
+    background: #e9ecef;
+}
+
+[data-theme="light"] .dropzone {
+    background: #ffffff;
+}
+
+[data-theme="light"] .tool-item {
+    background: #ffffff;
+}
+
+[data-theme="light"] .node-content {
+    background: #ffffff;
+}
+
+[data-theme="light"] .log-entry.waiting {
+    color: #808090;
+}
+
+[data-theme="light"] .step-log,
+[data-theme="light"] .workflow-log {
+    background: #e9ecef;
+}
+
+[data-theme="light"] .diagram-canvas {
+    background: #e9ecef;
+}
+
+[data-theme="light"] .node-bg {
+    fill: #ffffff;
+    stroke: #dee2e6;
+}
+
+[data-theme="light"] .node-label {
+    fill: #1a1a2e;
+}
+
+[data-theme="light"] .connection-line {
+    stroke: #dee2e6;
+}
+
 /* ==================== Theme Transitions ==================== */
 html {
     transition: background-color 0.3s ease, color 0.3s ease;
@@ -1952,6 +2026,14 @@ pre code {
     display: none !important;
 }
 
+/* ==================== Search Highlight ==================== */
+mark {
+    background: rgba(139, 92, 246, 0.3);
+    color: var(--text-primary);
+    padding: 0 2px;
+    border-radius: 2px;
+}
+
 /* ==================== Responsive ==================== */
 @media (max-width: 1200px) {
     .stats-grid {
@@ -2047,5 +2129,66 @@ pre code {
     
     .progress-info {
         grid-template-columns: 1fr;
+    }
+    
+    .builder-layout {
+        gap: var(--space-md);
+    }
+    
+    .toolbox {
+        max-height: 200px;
+    }
+    
+    .diagram-canvas {
+        padding: var(--space-sm);
+        overflow-x: auto;
+    }
+    
+    #workflow-svg {
+        min-width: 600px;
+    }
+    
+    .sync-flow {
+        padding: var(--space-sm);
+    }
+    
+    .sync-operation {
+        max-width: 100%;
+    }
+    
+    .planner-actions {
+        flex-direction: column;
+    }
+    
+    .planner-actions .btn {
+        width: 100%;
+    }
+    
+    .workflow-actions {
+        flex-direction: column;
+    }
+    
+    .workflow-actions .btn {
+        width: 100%;
+    }
+    
+    .dashboard-controls {
+        flex-direction: column;
+    }
+    
+    .dashboard-controls .btn {
+        width: 100%;
+    }
+    
+    .footer {
+        padding: var(--space-md);
+    }
+    
+    .tools-table {
+        font-size: 0.8rem;
+    }
+    
+    .tools-table th, .tools-table td {
+        padding: var(--space-sm);
     }
 }
