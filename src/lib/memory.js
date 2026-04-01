@@ -183,17 +183,27 @@ export function checkInterrupted() {
   return state.interrupted ? state : null;
 }
 
+/**
+ * @deprecated This function is not used by any tool
+ */
 export function addTask(task) {
   const state = getProjectState();
+  state.tasks = state.tasks || [];
   state.tasks.push({ ...task, status: 'pending', createdAt: new Date().toISOString() });
   saveProjectState(state);
 }
 
+/**
+ * @deprecated This function is not used by any tool
+ */
 export function addTodo(todo) {
   const state = getProjectState();
+  state.todos = state.todos || [];
   state.todos.push({ ...todo, done: false, createdAt: new Date().toISOString() });
   saveProjectState(state);
 }
+
+
 
 export function getPlanTemplates() {
   return {

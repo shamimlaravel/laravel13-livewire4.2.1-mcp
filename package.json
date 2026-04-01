@@ -1,7 +1,7 @@
 {
-  "name": "@shamimstack/mcp-laravel-livewire",
-  "version": "1.0.0",
-  "description": "MCP Server for Livewire v4.2+ / Laravel 13 / PHP 8.4+ — 58 AI-powered tools for full-stack development with planning, memory, bug fixing, versioning, GitHub integration, and design conversion.",
+  "name": "mcp-laravel-livewire",
+  "version": "3.1.0",
+  "description": "MCP Server for Livewire v4.2.1 / Laravel 13.2 / PHP 8.4+ — 75+ AI-powered tools: DRY patterns, security hardening, Flux UI, Reverb, renderless components, new model attributes, jobs, notifications, policies, middleware.",
   "type": "module",
   "main": "src/index.js",
   "bin": {

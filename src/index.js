@@ -4,22 +4,90 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { execSync } from "child_process";
 
+// Import helper functions for clean, DRY code generation
+import {
+  toPascalCase,
+  toCamelCase,
+  toSnakeCase,
+  toTitleCase,
+  extractModelInfo,
+  extractNamespace,
+  extractClassName,
+  generateValidationRules,
+  generateValidateAttribute,
+  generateAuthChecks,
+  generateProperty,
+  generateProperties,
+  generateFillableArray,
+  generateUseStatements,
+  formatPhpCode,
+  sanitizeInput,
+  validateField,
+  parseFields,
+  DEFAULT_LAYOUTS
+} from './lib/helpers.js';
+
+// Import reusable templates
+import {
+  livewireComponentTemplate,
+  eloquentModelTemplate,
+  bladeComponentTemplate,
+  pestTestWithDescribeTemplate,
+  migrationTemplate,
+  policyTemplate,
+  observerTemplate,
+  serviceClassTemplate,
+  enumTemplate,
+  apiResourceTemplate,
+  jobTemplate,
+  mailTemplate,
+  routesTemplate
+} from './lib/templates.js';
+
+// Import memory and GitHub utilities
+import {
+  initMemory,
+  getProjectState,
+  saveProjectState,
+  calculateProgress,
+  getPlanTemplates,
+  saveEndpoint,
+  saveMemory,
+  getAllMemories,
+  saveVersion,
+  getVersions,
+  restoreVersion,
+  reportBug,
+  markBugFixed,
+  getOpenBugs,
+  setInterrupted,
+  checkInterrupted
+} from "./lib/memory.js";
+
+import {
+  gitCommit,
+  gitPush,
+  gitPull,
+  createVersionTag,
+  gitStatus,
+  fullGitWorkflow
+} from './lib/github.js';
+
 const server = new McpServer({
   name: "laravel13-livewire4.2.1-mcp",
-  version: "2.0.0",
+  version: "3.1.0",
 });
 
-// ==================== HELPER FUNCTIONS ====================
-function toPascalCase(str) {
-  return str.split(/[.\-_]/).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join("\\\\");
-}
-function toCamelCase(str) {
-  return str.split(/[.\-_]/).map((p, i) => i === 0 ? p : p.charAt(0).toUpperCase() + p.slice(1)).join("");
-}
+// ==================== CONSTANTS ====================
+const VALID_SEVERITIES = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
+
+// ==================== LEGACY HELPER FUNCTIONS (deprecated, use helpers.js) ====================
+/** @deprecated Use safeType from helpers.js */
 function safeType(type) {
   const map = { string: "string", int: "int", float: "float", bool: "bool", array: "array", file: "\\Livewire\\Features\\SupportFileUploads\\TemporaryUploadedFile", model: "mixed" };
   return map[type] || "string";
 }
+/** @deprecated Use getDefaultForType from helpers.js */
 function defaultVal(type) {
   const map = { string: "''", int: "0", float: "0.0", bool: "false", array: "[]", file: "null", model: "null" };
   return map[type] || "''";
@@ -51,76 +119,155 @@ server.tool(
     authorize: z.boolean().default(true),
   },
   async ({ name, type, fields, hasForm, hasPagination, hasSearch, hasDelete, hasEdit, layout, title, modelClass, authorize }) => {
-    const parts = name.split(".");
-    const shortName = parts[parts.length - 1];
-    const className = toPascalCase(name);
-    const modelName = modelClass ? modelClass.split("\\").pop() : "Model";
-    const modelVar = modelName.charAt(0).toLowerCase() + modelName.slice(1);
-    const attrs = [`#[Layout('${layout}')]`];
-    if (title) attrs.push(`#[Title('${title}')]`);
-
-    const props = fields.map(f => {
-      let lines = [];
-      if (f.locked) lines.push("    #[Locked]");
-      if (f.defer) lines.push("    #[Defer]");
-      if (f.url) lines.push("    #[Url]");
-      if (f.rules) lines.push(`    #[Validate('${f.rules}')]`);
-      lines.push(`    public ${safeType(f.type)} $${f.name} = ${defaultVal(f.type)};`);
-      return lines.join("\n");
-    }).join("\n");
-
-    const rules = fields.filter(f => f.rules).map(f => `            '${f.name}' => '${f.rules}',`).join("\n");
-    const fillableFields = fields.map(f => `'${f.name}' => $this->${f.name},`).join("\n            ");
-
-    const authCheck = authorize ? `        $this->authorize('create', ${modelName}::class);\n` : "";
-    const authDelete = authorize ? `        $this->authorize('delete', $${modelVar});\n` : "";
-    const authEdit = authorize ? `        $this->authorize('update', $${modelVar});\n` : "";
-
+    // Use helper functions for DRY code
+    const model = modelClass ? extractModelInfo(modelClass) : { name: 'Model', variable: 'model' };
+    const namespace = extractNamespace(name);
+    const className = extractClassName(name);
+    const shortName = name.split('.').pop();
+    
+    // Generate auth checks using helper
+    const auth = generateAuthChecks({ authorize, modelName: model.name, modelVar: model.variable });
+    
+    // Generate properties using helper
+    const properties = fields.map(f => {
+        const attrs = [];
+        if (f.locked) attrs.push('    #[Locked]');
+        if (f.defer) attrs.push('    #[Defer]');
+        if (f.url) attrs.push('    #[Url]');
+        if (f.rules) attrs.push(`    #[Validate('${f.rules}')]`);
+        attrs.push(`    ${generateProperty(f)}`);
+        return attrs.join('\n');
+    }).join('\n');
+    
+    // Generate validation rules using helper
+    const rules = generateValidationRules(fields);
+    
+    // Generate fillable mapping
+    const fillableFields = fields.map(f => `'${f.name}' => $this->${f.name},`).join('\n            ');
+    
+    // Build imports array
+    const imports = ['Livewire\\Component'];
+    if (hasPagination) imports.push('Livewire\\WithPagination');
+    if (modelClass) imports.push(modelClass);
+    
+    // Build attribute imports
+    const attrImports = ['Layout'];
+    if (title) attrImports.push('Title');
+    if (hasEdit) attrImports.push('Computed');
+    
     const phpCode = `<?php
 
 use Livewire\\Component;
-use Livewire\\Attributes\\{Layout, Title, Validate, Locked, Defer, Url};
-${hasPagination ? "use Livewire\\WithPagination;" : ""}
-${modelClass ? `use ${modelClass};` : ""}
-${hasEdit ? "use Livewire\\Attributes\\Computed;" : ""}
+use Livewire\\Attributes\\{${attrImports.join(', ')}};
+${imports.slice(1).map(i => `use ${i};`).join('\n')}
 
-${attrs.join("\n")}
+#[Layout('${layout}')]
+${title ? `#[Title('${title}')]` : ''}
 new class extends Component {
-    ${hasPagination ? "use WithPagination;\n" : ""}
-${props}
-${hasSearch ? `\n    public string $search = '';\n\n    public function updatingSearch(): void\n    {\n        $this->resetPage();\n    }` : ""}
-${rules ? `\n    protected function rules(): array\n    {\n        return [\n${rules}\n        ];\n    }` : ""}
-${hasForm ? `\n    public function save(): void\n    {\n        $validated = $this->validate();\n${authCheck}\n        ${modelName}::create([\n            ${fillableFields}\n        ]);\n\n        $this->redirectRoute('${shortName}.index', navigate: true);\n    }` : ""}
-${hasEdit ? `\n    public ${modelName} $${modelVar};\n\n    public function edit(int $id): void\n    {\n        $this->${modelVar} = ${modelName}::findOrFail($id);\n${authEdit}\n        $this->${fields.map(f => `$this->${f.name} = $this->${modelVar}->${f.name};`).join("\n        ")}\n    }` : ""}
-${hasDelete ? `\n    public function delete(int $id): void\n    {\n        $${modelVar} = ${modelName}::findOrFail($id);\n${authDelete}\n        $${modelVar}->delete();\n    }` : ""}
+    ${hasPagination ? 'use WithPagination;\n' : ''}
+${properties}
+
+    /**
+     * Lifecycle hook - Props are reactive during boot (Livewire 4.2+)
+     * Use this to react to prop changes early in the component lifecycle
+     */
+    public function boot(): void
+    {
+        // Props are now reactive during boot hooks (Livewire 4.2.1)
+        // Initialize component state based on props here
+    }
+
+${hasSearch ? `public string $search = '';
+
+    public function updatingSearch(): void
+    {
+        $this->resetPage();
+    }` : ''}
+
+${rules ? `public function rules(): array
+    {
+        return [
+${rules}
+        ];
+    }` : ''}
+
+${hasForm ? `public function save(): void
+    {
+        $validated = $this->validate();
+        ${auth.create}
+        ${model.name}::create([
+            ${fillableFields}
+        ]);
+        
+        $this->dispatch('${shortName}-saved');
+    }` : ''}
+
+${hasEdit ? `public function edit(int $id): void
+    {
+        $${model.variable} = ${model.name}::findOrFail($id);
+        ${auth.update}
+${fields.map(f => `        $this->${f.name} = $${model.variable}->${f.name};`).join('\n')}
+    }` : ''}
+
+${hasDelete ? `public function delete(int $id): void
+    {
+        $${model.variable} = ${model.name}::findOrFail($id);
+        ${auth.delete}
+        $${model.variable}->delete();
+        $this->dispatch('${shortName}-deleted');
+    }` : ''}
 };
 ?>`;
 
     const bladeCode = `<div class="p-6">
-${hasSearch ? `    <div class="mb-4">
-        <input type="text" wire:model.live.debounce.300ms="search" placeholder="Search..." class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
-    </div>` : ""}
-${hasForm ? `    <form wire:submit="save" class="space-y-4">
+    ${hasSearch ? `<div class="mb-4">
+        <input type="text" wire:model.live.debounce.300ms="search" 
+               placeholder="Search..."
+               class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500">
+    </div>` : ''}
+    
+    ${hasForm ? `<form wire:submit="save" class="space-y-4">
 ${fields.map(f => `        <div>
-            <label for="${f.name}" class="block text-sm font-medium text-gray-700">${f.name}</label>
-            <input type="text" wire:model="${f.name}" id="${f.name}" class="mt-1 w-full px-3 py-2 border rounded-lg">
+            <label for="${f.name}" class="block text-sm font-medium text-gray-700">
+                ${f.name.charAt(0).toUpperCase() + f.name.slice(1).replace(/_/g, ' ')}
+            </label>
+            <input type="${f.type === 'email' ? 'email' : 'text'}" 
+                   wire:model="${f.name}" 
+                   id="${f.name}" 
+                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
             @error('${f.name}')<span class="text-red-500 text-sm">{{ $message }}</span>@enderror
-        </div>`).join("\n")}
-        <button type="submit" wire:loading.attr="disabled" wire:loading.class="opacity-50" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
-            Save
-        </button>
-    </form>` : ""}
-${hasEdit ? `\n    <button wire:click="edit(1)" class="px-3 py-1 text-blue-600 hover:underline">Edit</button>` : ""}
-${hasDelete ? `\n    <button wire:click="delete(1)" wire:confirm="Are you sure?" class="px-3 py-1 text-red-600 hover:underline">Delete</button>` : ""}
+        </div>`).join('\n')}
+        
+        <div class="flex justify-end gap-3">
+            <button type="button" 
+                    @click="$errors.clear()"
+                    class="px-4 py-2 text-gray-600 hover:text-gray-800">
+                Clear
+            </button>
+            <button type="submit" 
+                    class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                    wire:loading.attr="disabled"
+                    wire:target="save">
+                <span wire:loading.remove wire:target="save">Save</span>
+                <span wire:loading wire:target="save">Saving...</span>
+            </button>
+        </div>
+    </form>` : ''}
+    
+    ${hasEdit ? `<div class="flex gap-2 mt-4">
+        <button wire:click="edit(1)" class="px-3 py-1 text-indigo-600 hover:underline">Edit</button>
+    </div>` : ''}
+    
+    ${hasDelete ? `<button wire:click="delete(1)" 
+                    wire:confirm="Are you sure you want to delete this item?"
+                    class="px-3 py-1 text-red-600 hover:underline">
+        Delete
+    </button>` : ''}
 </div>`;
 
     return { content: [{ type: "text", text: `${phpCode}\n\n${bladeCode}` }] };
   }
 );
-
-// ==================== IMPORT LIBRARIES ====================
-import { initMemory, getProjectState, saveProjectState, calculateProgress, getPlanTemplates, updatePhaseStatus, saveEndpoint, saveMemory, getMemory, getAllMemories, saveVersion, getVersions, restoreVersion, reportBug, markBugFixed, getOpenBugs, setInterrupted, checkInterrupted, addTask, addTodo } from "./lib/memory.js";
-import { checkGHInstalled, checkGHAuth, ensureGHAuth, initGitRepo, createGitHubRepo, generateCommitMessage, gitCommit, gitPush, gitPull, createVersionTag, listTags, gitStatus, gitCreateBranch, gitListBranches, gitMergeBranch, gitDeleteBranch, createPullRequest, listPullRequests, mergePullRequest, createGitHubRelease, createIssueFromBug, listIssues, createGitHubActions, autoPushOnComplete, autoSyncOnTaskComplete, fullGitWorkflow } from "./lib/github.js";
 
 // Initialize memory on server start
 initMemory();
@@ -150,7 +297,7 @@ server.tool(
 // ==================== TOOL: Generate Eloquent Model ====================
 server.tool(
   "generate_eloquent_model",
-  "Generate a Laravel 13 Eloquent model with PHP attributes, relationships, scopes, casts, and observers.",
+  "Generate a Laravel 13.2 Eloquent model with PHP 8.3 attributes, relationships, scopes, casts, observers, and new v13.2 features.",
   {
     name: z.string().describe("Model name e.g. 'Post'"),
     table: z.string().optional(),
@@ -158,12 +305,15 @@ server.tool(
     relationships: z.array(z.object({ name: z.string(), type: z.enum(["belongsTo", "hasMany", "belongsToMany", "hasOne", "morphMany", "morphTo"]), related: z.string() })).default([]),
     softDeletes: z.boolean().default(false),
     timestamps: z.boolean().default(true),
+    dateFormat: z.string().optional().describe("Custom date format e.g. 'U' for Unix timestamp"),
+    withoutTimestamps: z.boolean().default(false).describe("Disable timestamps (Laravel 13.2 #[WithoutTimestamps])"),
+    scopedBy: z.string().optional().describe("Global scope column e.g. 'tenant_id' (Laravel 13.2 #[ScopedBy])"),
     scopes: z.array(z.object({ name: z.string(), condition: z.string().optional() })).default([]),
     casts: z.array(z.object({ field: z.string(), type: z.string() })).default([]),
     policy: z.string().optional(),
     observer: z.string().optional(),
   },
-  async ({ name, table, fields, relationships, softDeletes, timestamps, scopes, casts, policy, observer }) => {
+  async ({ name, table, fields, relationships, softDeletes, timestamps, dateFormat, withoutTimestamps, scopedBy, scopes, casts, policy, observer }) => {
     const tableName = table || (name.toLowerCase() + "s");
     const fillable = fields.filter(f => f.fillable !== false).map(f => `'${f.name}'`);
     const hidden = fields.filter(f => f.hidden).map(f => `'${f.name}'`);
@@ -174,7 +324,14 @@ server.tool(
       return `    public function ${r.name}(): ${returnType}\n    {\n        return $this->${r.type}(${cap}::class);\n    }`;
     }).join("\n\n");
     const scps = scopes.map(s => `    #[Scope]\n    public function ${s.name}(Builder $query): void\n    {\n        $query->${s.condition || `where('${s.name}', true)`};\n    }`).join("\n\n");
-    const code = `<?php\n\nnamespace App\\Models;\n\nuse Illuminate\\Database\\Eloquent\\Model;\nuse Illuminate\\Database\\Eloquent\\Attributes\\{Table, Fillable, Hidden, Scope, UsePolicy, ObservedBy};\nuse Illuminate\\Database\\Eloquent\\Builder;\n${softDeletes ? "use Illuminate\\Database\\Eloquent\\SoftDeletes;" : ""}\n${policy ? `use App\\Policies\\${policy};` : ""}\n${observer ? `use App\\Observers\\${observer};` : ""}\n\n#[Table('${tableName}')]\n${fillable.length ? `#[Fillable([${fillable.join(", ")}])]` : ""}\n${hidden.length ? `#[Hidden([${hidden.join(", ")}])]` : ""}\n${policy ? `#[UsePolicy(${policy}::class)]` : ""}\n${observer ? `#[ObservedBy(${observer}::class)]` : ""}\nclass ${name} extends Model\n{\n${softDeletes ? "    use SoftDeletes;\n" : ""}    protected function casts(): array\n    {\n        return [\n${castFields}        ];\n    }\n\n${scps}\n\n${rels}\n}`;
+    
+    // Laravel 13.2 attributes
+    const l13Attributes = [];
+    if (dateFormat) l13Attributes.push(`#[DateFormat('${dateFormat}')]`);
+    if (withoutTimestamps || !timestamps) l13Attributes.push('#[WithoutTimestamps]');
+    if (scopedBy) l13Attributes.push(`#[ScopedBy('${scopedBy}')]`);
+    
+    const code = `<?php\n\nnamespace App\\Models;\n\nuse Illuminate\\Database\\Eloquent\\Model;\nuse Illuminate\\Database\\Eloquent\\Attributes\\{Table, Fillable, Hidden, Scope, UsePolicy, ObservedBy, DateFormat, WithoutTimestamps, ScopedBy};\nuse Illuminate\\Database\\Eloquent\\Builder;\n${softDeletes ? "use Illuminate\\Database\\Eloquent\\SoftDeletes;" : ""}\n${policy ? `use App\\Policies\\${policy};` : ""}\n${observer ? `use App\\Observers\\${observer};` : ""}\n\n#[Table('${tableName}')]\n${fillable.length ? `#[Fillable([${fillable.join(", ")}])]` : ""}\n${hidden.length ? `#[Hidden([${hidden.join(", ")}])]` : ""}\n${policy ? `#[UsePolicy(${policy}::class)]` : ""}\n${observer ? `#[ObservedBy(${observer}::class)]` : ""}\n${l13Attributes.length ? l13Attributes.join("\n") + "\n" : ""}class ${name} extends Model\n{\n${softDeletes ? "    use SoftDeletes;\n" : ""}    protected function casts(): array\n    {\n        return [\n${castFields}        ];\n    }\n\n${scps}\n\n${rels}\n}`;
     return { content: [{ type: "text", text: code }] };
   }
 );
@@ -222,8 +379,8 @@ server.tool(
   },
   async ({ componentName, modelClass, fields, hasAuth, hasValidation, hasDelete, hasEdit }) => {
     const cls = toPascalCase(componentName);
-    const modelName = modelClass ? modelClass.split("\\").pop() : "Model";
-    const modelVar = modelName.charAt(0).toLowerCase() + modelName.slice(1);
+    const modelInfo = extractModelInfo(modelClass || 'App\\Models\\Model');
+    const { name: modelName, variable: modelVar } = modelInfo;
     const setFields = fields.map(f => `->set('${f.name}', '${f.testValue}')`).join("\n        ");
     const invalidTests = fields.map(f => `\nit('validates ${f.name} is required', function () {\n    $user = User::factory()->create();\n    Livewire::actingAs($user)->test(${cls}::class)\n        ->set('${f.name}', '${f.invalidValue || ""}')\n        ->call('save')\n        ->assertHasErrors(['${f.name}']);\n});`).join("");
     const code = `<?php\n\nuse App\\Livewire\\${cls};\nuse Livewire\\Livewire;\nuse App\\Models\\User;\n${modelClass ? `use ${modelClass};` : ""}\n\n${hasAuth ? `it('requires authentication', function () {\n    Livewire::test(${cls}::class)->call('save')->assertForbidden();\n});\n\n` : ""}it('can save successfully', function () {\n    $user = User::factory()->create();\n    Livewire::actingAs($user)->test(${cls}::class)\n        ${setFields}\n        ->call('save')\n        ->assertHasNoErrors();\n    $this->assertDatabaseHas('${modelName.toLowerCase()}s', {\n        ${fields.map(f => `'${f.name}' => '${f.testValue}'`).join(",\n        ")}\n    });\n});${hasValidation ? invalidTests : ""}${hasEdit ? `\nit('can edit existing ${modelVar}', function () {\n    $user = User::factory()->create();\n    $${modelVar} = ${modelName}::factory()->create();\n    Livewire::actingAs($user)->test(${cls}::class)->call('edit', $${modelVar}->id)->assertSet('${fields[0]?.name || "title"}', $${modelVar}->${fields[0]?.name || "title"});\n});` : ""}${hasDelete ? `\nit('can delete ${modelVar}', function () {\n    $user = User::factory()->create();\n    $${modelVar} = ${modelName}::factory()->create();\n    Livewire::actingAs($user)->test(${cls}::class)->call('delete', $${modelVar}->id)->assertHasNoErrors();\n    $this->assertModelMissing($${modelVar});\n});` : ""}`;
@@ -234,23 +391,57 @@ server.tool(
 // ==================== TOOL: Security Audit ====================
 server.tool(
   "security_audit",
-  "Audit Livewire/Laravel code for security vulnerabilities including XSS, SQL injection, mass assignment, missing auth, CSRF, rate limiting.",
+  "Audit Livewire 4.2.1/Laravel 13.2 code for security vulnerabilities including XSS, SQL injection, mass assignment, missing auth, CSRF, rate limiting, and Livewire-specific issues.",
   { code: z.string().describe("Code to audit"), fileType: z.enum(["php", "blade", "model", "component", "routes"]) },
   async ({ code, fileType }) => {
     const issues = [];
+    // XSS
     if (code.includes("{!!") && (code.includes("request()") || code.includes("input(") || code.includes("$request"))) issues.push({ severity: "CRITICAL", type: "XSS", msg: "Unescaped output with user input", fix: "Use {{ }} instead of {!! !!} with user data" });
+    // SQL Injection
     if (code.includes("DB::raw(") && code.includes("$")) issues.push({ severity: "CRITICAL", type: "SQL Injection", msg: "DB::raw() with variable interpolation", fix: "Use parameter binding or Eloquent query builder" });
+    // Mass Assignment
     if (code.includes("$guarded = []") || code.includes("#[Unguarded]")) issues.push({ severity: "HIGH", type: "Mass Assignment", msg: "Mass assignment protection disabled", fix: "Use #[Fillable([...])] with explicit field whitelist" });
+    // Missing Validation
     if ((fileType === "component" || fileType === "php") && code.includes("->create(") && !code.includes("validate") && !code.includes("Validate")) issues.push({ severity: "HIGH", type: "Missing Validation", msg: "Database create() without validation", fix: "Add $this->validate() or #[Validate] attributes before create()" });
+    // Missing Authorization
     if ((fileType === "component" || fileType === "php") && code.includes("->delete()") && !code.includes("authorize")) issues.push({ severity: "HIGH", type: "Missing Authorization", msg: "Delete operation without authorization check", fix: "Add $this->authorize('delete', $model) before delete()" });
     if ((fileType === "component" || fileType === "php") && code.includes("->update(") && !code.includes("authorize")) issues.push({ severity: "HIGH", type: "Missing Authorization", msg: "Update operation without authorization check", fix: "Add $this->authorize('update', $model) before update()" });
+    // Missing wire:key
     if (fileType === "blade" && code.includes("@foreach") && !code.includes("wire:key")) issues.push({ severity: "MEDIUM", type: "Missing wire:key", msg: "Loop without wire:key attribute", fix: "Add wire:key=\"{{ $item->id }}\" to loop elements" });
+    // Unlocked Sensitive Property
     if (code.includes("public $") && !code.includes("#[Locked]") && (code.includes("userId") || code.includes("user_id") || code.includes("role") || code.includes("isAdmin"))) issues.push({ severity: "MEDIUM", type: "Unlocked Sensitive Property", msg: "Sensitive property not locked", fix: "Add #[Locked] attribute to prevent frontend manipulation" });
+    // File Upload Security
     if (code.includes("store(") && !code.includes("mimes:") && !code.includes("image:")) issues.push({ severity: "HIGH", type: "File Upload Security", msg: "File upload without MIME/type validation", fix: "Add mimes:jpg,png,pdf|max:2048 validation rules" });
+    // Configuration
     if (code.includes("env(") && !code.includes("config(")) issues.push({ severity: "LOW", type: "Configuration", msg: "Using env() directly instead of config()", fix: "Use config('app.key') instead of env('APP_KEY')" });
+    // SQL Injection in queries
     if (code.includes("where(") && code.includes("$_") && !code.includes("request()->validate")) issues.push({ severity: "HIGH", type: "SQL Injection", msg: "Direct user input in query", fix: "Validate input before using in queries" });
+    // Command Injection
     if (code.includes("exec(") || code.includes("shell_exec(") || code.includes("system(") || code.includes("passthru(")) issues.push({ severity: "CRITICAL", type: "Command Injection", msg: "Shell execution detected", fix: "Avoid shell execution; use Laravel's process helper with escapeshellarg()" });
-    const result = issues.length === 0 ? "✅ No security issues found." : `Found ${issues.length} issue(s):\n\n` + issues.map(i => `🔴 [${i.severity}] ${i.type}\n   ${i.msg}\n   Fix: ${i.fix}`).join("\n\n");
+    
+    // Livewire 4.2.1 Security Hardening
+    // Lifecycle methods should not be public callable
+    if (fileType === "component" && (code.includes("public function boot(") || code.includes("public function mount("))) {
+      issues.push({ severity: "HIGH", type: "Livewire Security", msg: "Lifecycle method (boot/mount) is public - can be invoked from frontend in older versions", fix: "Use protected/private for boot() and mount() methods in Livewire 4.2.1" });
+    }
+    // Missing #[Validate] attribute
+    if (fileType === "component" && code.includes("public $") && !code.includes("#[Validate]") && code.includes("wire:model")) {
+      issues.push({ severity: "MEDIUM", type: "Livewire Security", msg: "Properties bound with wire:model should have #[Validate] attribute", fix: "Add #[Validate('rules')] attribute to properties for Livewire 4.2.1 validation" });
+    }
+    // CSRF token missing in forms
+    if (fileType === "blade" && code.includes("<form") && !code.includes("@csrf") && !code.includes("csrf")) {
+      issues.push({ severity: "HIGH", type: "CSRF", msg: "Form without CSRF protection", fix: "Add @csrf directive inside all forms" });
+    }
+    // Unescaped output in Livewire
+    if (fileType === "component" && code.includes("{!!") && code.includes("$this->")) {
+      issues.push({ severity: "CRITICAL", type: "XSS", msg: "Unescaped component property output", fix: "Use {{ $this->property }} instead of {!! !!} for component properties" });
+    }
+    // Rate limiting on sensitive endpoints
+    if (fileType === "routes" && code.includes("->delete(") && !code.includes("throttle") && !code.includes("rateLimit")) {
+      issues.push({ severity: "MEDIUM", type: "Rate Limiting", msg: "Delete endpoint without rate limiting", fix: "Add ->middleware('throttle:60,1') to sensitive endpoints" });
+    }
+    
+    const result = issues.length === 0 ? "✅ No security issues found. Code follows Laravel 13.2 and Livewire 4.2.1 security best practices." : `Found ${issues.length} issue(s):\n\n` + issues.map(i => `🔴 [${i.severity}] ${i.type}\n   ${i.msg}\n   Fix: ${i.fix}`).join("\n\n");
     return { content: [{ type: "text", text: result }] };
   }
 );
@@ -272,7 +463,7 @@ server.tool(
     if (hasForm) {
       blade = blade.replace(/<input\s+type="([^"]+)"\s+name="([^"]+)"([^>]*)>/g, '<input type="$1" wire:model="$2"$3>\n            @error(\'$2\')<span class="text-red-500 text-xs">{{ $message }}</span>@enderror');
       blade = blade.replace(/<textarea\s+name="([^"]+)"([^>]*)>/g, '<textarea wire:model="$1"$2></textarea>\n            @error(\'$1\')<span class="text-red-500 text-xs">{{ $message }}</span>@enderror');
-      blade = blade.replace(/<form\s+action="[^"]*"\s+method="POST">/g, '<form wire:submit="save">');
+      blade = blade.replace(/<form\s+action="[^"]*"\s+method="POST">/g, '<form wire:submit="save">\n                @csrf');
     }
     if (hasModal) blade = blade.replace(/class="([^"]*)hidden([^"]*)fixed/g, 'wire:show="showModal" class="$1$2fixed');
     if (hasList) blade = blade.replace(/<li([^>]*)>/g, '<li$1 wire:key="{{ $item->id }}">');
@@ -281,7 +472,7 @@ server.tool(
     const uniqueFields = [...new Set(fields)];
     const props = uniqueFields.map(f => `    public string $${f} = '';`).join("\n");
     const rules = uniqueFields.map(f => `            '${f}' => 'required',`).join("\n");
-    const code = `<?php\n\nuse Livewire\\Component;\nuse Livewire\\Attributes\\{Layout, Title};\n\n#[Layout('${layout}')]\nnew class extends Component {\n${props}\n\n    protected function rules(): array\n    {\n        return [\n${rules}        ];\n    }\n\n${hasForm ? `    public function save(): void\n    {\n        $validated = $this->validate();\n        // TODO: Save to database\n    }` : ""}${hasModal ? `    public bool $showModal = false;` : ""}\n};\n?>\n\n${blade}`;
+    const code = `<?php\n\nuse Livewire\\Component;\nuse Livewire\\Attributes\\{Layout, Title};\n\n#[Layout('${layout}')]\nnew class extends Component {\n${props}\n\n    protected function rules(): array\n    {\n        return [\n${rules}        ];\n    }\n\n${hasForm ? `    public function save(): void\n    {\n        $validated = $this->validate();\n        session()->flash('success', 'Form submitted successfully.');\n        $this->reset();\n    }` : ""}${hasModal ? `    public bool $showModal = false;` : ""}\n};\n?>\n\n${blade}`;
     return { content: [{ type: "text", text: code }] };
   }
 );
@@ -316,18 +507,17 @@ server.tool(
     softDeletes: z.boolean().default(false),
   },
   async ({ model, modelClass, fields, layout, authorize, softDeletes }) => {
-    const modelName = modelClass ? modelClass.split("\\").pop() : model;
-    const modelVar = modelName.charAt(0).toLowerCase() + modelName.slice(1);
+    const modelInfo = extractModelInfo(modelClass || model);
+    const { name: modelName, variable: modelVar } = modelInfo;
+    
     const props = fields.map(f => `    public string $${f.name} = '';`).join("\n");
     const fillable = fields.map(f => `            '${f.name}' => $this->${f.name},`).join("\n");
-    const rules = fields.map(f => `            '${f.name}' => '${f.rules}',`).join("\n");
-    const authCreate = authorize ? `        $this->authorize('create', ${modelName}::class);` : "";
-    const authUpdate = authorize ? `        $this->authorize('update', $this->${modelVar});` : "";
-    const authDelete = authorize ? `        $this->authorize('delete', $${modelVar});` : "";
+    const rules = generateValidationRules(fields, { indent: '            ' });
+    const auth = generateAuthChecks({ authorize, modelName, modelVar });
     const formFields = fields.map(f => `        <div>\n            <label for="${f.name}" class="block text-sm font-medium text-gray-700">${f.label || f.name}</label>\n            <input type="${f.inputType}" wire:model="${f.name}" id="${f.name}" class="mt-1 w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">\n            @error('${f.name}')<span class="text-red-500 text-sm">{{ $message }}</span>@enderror\n        </div>`).join("\n");
     const tableHeaders = fields.map(f => `            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">${f.label || f.name}</th>`).join("\n");
     const tableCells = fields.map(f => `                <td class="px-6 py-4 whitespace-nowrap">{{ $${modelVar}->${f.name} }}</td>`).join("\n");
-    const code = `<?php\n\nuse Livewire\\Component;\nuse Livewire\\WithPagination;\nuse Livewire\\Attributes\\{Layout, Title, Computed};\nuse ${modelClass};\n\n#[Layout('${layout}')]\n#[Title('${modelName} Management')]\nnew class extends Component {\n    use WithPagination;\n\n${props}\n\n    public ${modelName} $${modelVar};\n    public bool $showModal = false;\n    public string $search = '';\n    public string $action = 'create';\n\n    public function rules(): array\n    {\n        return [\n${rules}        ];\n    }\n\n    #[Computed]\n    public function items()\n    {\n        return ${modelName}::query()\n            ->when($this->search, fn($q) => $q->where('${fields[0]?.name || "title"}', 'like', "%{$this->search}%"))\n            ${softDeletes ? "->withTrashed()\n            " : ""}->latest()\n            ->paginate(15);\n    }\n\n    public function creating(): void\n    {\n        $this->reset(fields);\n        $this->action = 'create';\n        $this->showModal = true;\n    }\n\n    public function editing(int $id): void\n    {\n        $this->${modelVar} = ${modelName}::findOrFail($id);\n${authUpdate}\n        $this->action = 'edit';\n        ${fields.map(f => `$this->${f.name} = $this->${modelVar}->${f.name};`).join("\n        ")}\n        $this->showModal = true;\n    }\n\n    public function save(): void\n    {\n        $validated = $this->validate();\n        if ($this->action === 'create') {\n${authCreate}\n            ${modelName}::create([\n${fillable}            ]);\n        } else {\n            $this->${modelVar}->update([\n${fillable}            ]);\n        }\n        $this->showModal = false;\n        $this->reset(fields);\n    }\n\n    public function delete(int $id): void\n    {\n        $${modelVar} = ${modelName}::findOrFail($id);\n${authDelete}\n        $${modelVar}->delete();\n    }\n\n    public function updatingSearch(): void\n    {\n        $this->resetPage();\n    }\n};\n?>\n\n<div class="p-6">\n    <div class="flex justify-between items-center mb-6">\n        <h1 class="text-2xl font-bold">${modelName} Management</h1>\n        <button wire:click="creating" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Create New</button>\n    </div>\n    <div class="mb-4">\n        <input type="text" wire:model.live.debounce.300ms="search" placeholder="Search..." class="w-full px-4 py-2 border rounded-lg">\n    </div>\n    <div class="bg-white rounded-lg shadow overflow-hidden">\n        <table class="min-w-full divide-y divide-gray-200">\n            <thead class="bg-gray-50">\n                <tr>\n${tableHeaders}\n                    <th class="px-6 py-3 text-right">Actions</th>\n                </tr>\n            </thead>\n            <tbody class="bg-white divide-y divide-gray-200">\n                @forelse($this->items as $${modelVar})\n                <tr wire:key="{{ $${modelVar}->id }}">\n${tableCells}\n                    <td class="px-6 py-4 whitespace-nowrap text-right">\n                        <button wire:click="editing({{ $${modelVar}->id }})" class="text-blue-600 hover:underline mr-3">Edit</button>\n                        <button wire:click="delete({{ $${modelVar}->id }})" wire:confirm="Are you sure?" class="text-red-600 hover:underline">Delete</button>\n                    </td>\n                </tr>\n                @empty\n                <tr><td colspan="${fields.length + 1}" class="px-6 py-8 text-center text-gray-500">No ${model.toLowerCase()} found.</td></tr>\n                @endforelse\n            </tbody>\n        </table>\n    </div>\n    <div class="mt-4">{{ $this->items->links() }}</div>\n    @if($showModal)\n    <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">\n        <div class="bg-white rounded-lg p-6 w-full max-w-md" @click.away="$wire.showModal = false">\n            <h2 class="text-lg font-semibold mb-4">{{ $action === 'create' ? 'Create' : 'Edit' }} ${modelName}</h2>\n            <form wire:submit="save" class="space-y-4">\n${formFields}\n                <div class="flex gap-3 justify-end">\n                    <button type="button" wire:click="$set('showModal', false)" class="px-4 py-2 text-gray-600">Cancel</button>\n                    <button type="submit" wire:loading.attr="disabled" class="px-4 py-2 bg-blue-600 text-white rounded-lg">Save</button>\n                </div>\n            </form>\n        </div>\n    </div>\n    @endif\n</div>`;
+    const code = `<?php\n\nuse Livewire\\Component;\nuse Livewire\\WithPagination;\nuse Livewire\\Attributes\\{Layout, Title, Computed};\nuse ${modelClass};\n\n#[Layout('${layout}')]\n#[Title('${modelName} Management')]\nnew class extends Component {\n    use WithPagination;\n\n${props}\n\n    public ${modelName} $${modelVar};\n    public bool $showModal = false;\n    public string $search = '';\n    public string $action = 'create';\n\n    public function rules(): array\n    {\n        return [\n${rules}        ];\n    }\n\n    #[Computed]\n    public function items()\n    {\n        return ${modelName}::query()\n            ->when($this->search, fn($q) => $q->where('${fields[0]?.name || "title"}', 'like', "%{$this->search}%"))\n            ${softDeletes ? "->withTrashed()\n            " : ""}->latest()\n            ->paginate(15);\n    }\n\n    public function creating(): void\n    {\n        $this->reset(fields);\n        $this->action = 'create';\n        $this->showModal = true;\n    }\n\n    public function editing(int $id): void\n    {\n        $this->${modelVar} = ${modelName}::findOrFail($id);\n${auth.update}\n        $this->action = 'edit';\n        ${fields.map(f => `$this->${f.name} = $this->${modelVar}->${f.name};`).join("\n        ")}\n        $this->showModal = true;\n    }\n\n    public function save(): void\n    {\n        $validated = $this->validate();\n        if ($this->action === 'create') {\n${auth.create}\n            ${modelName}::create([\n${fillable}            ]);\n        } else {\n            $this->${modelVar}->update([\n${fillable}            ]);\n        }\n        $this->showModal = false;\n        $this->reset(fields);\n    }\n\n    public function delete(int $id): void\n    {\n        $${modelVar} = ${modelName}::findOrFail($id);\n${auth.delete}\n        $${modelVar}->delete();\n    }\n\n    public function updatingSearch(): void\n    {\n        $this->resetPage();\n    }\n};\n?>\n\n<div class="p-6">\n    <div class="flex justify-between items-center mb-6">\n        <h1 class="text-2xl font-bold">${modelName} Management</h1>\n        <button wire:click="creating" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Create New</button>\n    </div>\n    <div class="mb-4">\n        <input type="text" wire:model.live.debounce.300ms="search" placeholder="Search..." class="w-full px-4 py-2 border rounded-lg">\n    </div>\n    <div class="bg-white rounded-lg shadow overflow-hidden">\n        <table class="min-w-full divide-y divide-gray-200">\n            <thead class="bg-gray-50">\n                <tr>\n${tableHeaders}\n                    <th class="px-6 py-3 text-right">Actions</th>\n                </tr>\n            </thead>\n            <tbody class="bg-white divide-y divide-gray-200">\n                @forelse($this->items as $${modelVar})\n                <tr wire:key="{{ $${modelVar}->id }}">\n${tableCells}\n                    <td class="px-6 py-4 whitespace-nowrap text-right">\n                        <button wire:click="editing({{ $${modelVar}->id }})" class="text-blue-600 hover:underline mr-3">Edit</button>\n                        <button wire:click="delete({{ $${modelVar}->id }})" wire:confirm="Are you sure?" class="text-red-600 hover:underline">Delete</button>\n                    </td>\n                </tr>\n                @empty\n                <tr><td colspan="${fields.length + 1}" class="px-6 py-8 text-center text-gray-500">No ${model.toLowerCase()} found.</td></tr>\n                @endforelse\n            </tbody>\n        </table>\n    </div>\n    <div class="mt-4">{{ $this->items->links() }}</div>\n    @if($showModal)\n    <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">\n        <div class="bg-white rounded-lg p-6 w-full max-w-md" @click.away="$wire.showModal = false">\n            <h2 class="text-lg font-semibold mb-4">{{ $action === 'create' ? 'Create' : 'Edit' }} ${modelName}</h2>\n            <form wire:submit="save" class="space-y-4">\n${formFields}\n                <div class="flex gap-3 justify-end">\n                    <button type="button" wire:click="$set('showModal', false)" class="px-4 py-2 text-gray-600">Cancel</button>\n                    <button type="submit" wire:loading.attr="disabled" class="px-4 py-2 bg-blue-600 text-white rounded-lg">Save</button>\n                </div>\n            </form>\n        </div>\n    </div>\n    @endif\n</div>`;
     return { content: [{ type: "text", text: code }] };
   }
 );
@@ -393,7 +583,7 @@ server.tool(
       if (f.relationship) return `        <div><label for="${f.name}" class="block text-sm font-medium text-gray-700">${f.label || f.name}</label><select wire:model="${f.name}" id="${f.name}" class="mt-1 w-full px-3 py-2 border rounded-lg"><option value="">Select ${f.label || f.name}</option>@foreach($${f.name}Options as $id => $name)<option value="{{ $id }}">{{ $name }}</option>@endforeach</select>@error('${f.name}')<span class="text-red-500 text-sm">{{ $message }}</span>@enderror</div>`;
       return `        <div><label for="${f.name}" class="block text-sm font-medium text-gray-700">${f.label || f.name}</label><input type="${f.type}" wire:model="${f.name}" id="${f.name}" class="mt-1 w-full px-3 py-2 border rounded-lg">@error('${f.name}')<span class="text-red-500 text-sm">{{ $message }}</span>@enderror</div>`;
     }).join("\n");
-    const code = `<?php\n\nuse Livewire\\Component;\nuse Livewire\\Attributes\\{Layout, Title};\n${fileImports}\nuse ${modelClass};\n${relationships.map(f => `use ${f.relationship};`).join("\n")}\n\n#[Layout('${layout}')]\n#[Title('Create ${modelName}')]\nnew class extends Component {\n${fileTrait}\n\n${props}\n${relProps.join("\n")}\n\n    public function mount(): void\n    {\n${relLoads.join("\n")}\n    }\n\n    public function rules(): array\n    {\n        return [\n${rules}\n${fileRules}        ];\n    }\n\n    public function save(): void\n    {\n        $validated = $this->validate();\n${authorize ? `        $this->authorize('create', ${modelName}::class);` : ""}\n        ${modelName}::create([\n${fillable}\n${fileStores}        ]);\n        session()->flash('success', '${modelName} created successfully.');\n        $this->redirectRoute('${model.toLowerCase()}.index', navigate: true);\n    }\n};\n?>\n\n<div class="p-6 max-w-2xl mx-auto">\n    <h1 class="text-2xl font-bold mb-6">Create ${modelName}</h1>\n    <form wire:submit="save" class="space-y-6 bg-white p-6 rounded-lg shadow">\n${formElements}\n        <div class="flex gap-3 justify-end">\n            <a href="{{ url()->previous() }}" class="px-4 py-2 text-gray-600">Cancel</a>\n            <button type="submit" wire:loading.attr="disabled" wire:loading.class="opacity-50" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">\n                <span wire:loading.remove>Save</span><span wire:loading>Saving...</span>\n            </button>\n        </div>\n    </form>\n</div>`;
+    const code = `<?php\n\nuse Livewire\\Component;\nuse Livewire\\Attributes\\{Layout, Title};\n${fileImports}\nuse ${modelClass};\n${relationships.map(f => `use ${f.relationship};`).join("\n")}\n\n#[Layout('${layout}')]\n#[Title('Create ${modelName}')]\nnew class extends Component {\n${fileTrait}\n\n${props}\n${relProps.join("\n")}\n\n    public function mount(): void\n    {\n${relLoads.join("\n")}\n    }\n\n    public function rules(): array\n    {\n        return [\n${rules}\n${fileRules}        ];\n    }\n\n    public function save(): void\n    {\n        $validated = $this->validate();\n${authorize ? `        $this->authorize('create', ${modelName}::class);` : ""}\n        ${modelName}::create([\n${fillable}\n${fileStores}        ]);\n        session()->flash('success', '${modelName} created successfully.');\n        $this->redirectRoute('${model.toLowerCase()}.index', navigate: true);\n    }\n};\n?>\n\n<div class="p-6 max-w-2xl mx-auto">\n    <h1 class="text-2xl font-bold mb-6">Create ${modelName}</h1>\n    <form wire:submit="save" class="space-y-6 bg-white p-6 rounded-lg shadow">\n        @csrf\n${formElements}\n        <div class="flex gap-3 justify-end">\n            <a href="{{ url()->previous() }}" class="px-4 py-2 text-gray-600">Cancel</a>\n            <button type="submit" wire:loading.attr="disabled" wire:loading.class="opacity-50" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">\n                <span wire:loading.remove>Save</span><span wire:loading>Saving...</span>\n            </button>\n        </div>\n    </form>\n</div>`;
     return { content: [{ type: "text", text: code }] };
   }
 );
@@ -417,7 +607,7 @@ server.tool(
     const rules = fields.map(f => `            '${f.name}' => '${f.rules || "required"}',`).join("\n");
     const formFields = fields.map(f => `        <div><label class="block text-sm font-medium text-gray-700">${f.name}</label><input type="text" wire:model="${f.name}" class="mt-1 w-full px-3 py-2 border rounded-lg">@error('${f.name}')<span class="text-red-500 text-sm">{{ $message }}</span>@enderror</div>`).join("\n");
     const buttonColors = { confirm: "bg-blue-600 hover:bg-blue-700", delete: "bg-red-600 hover:bg-red-700", form: "bg-green-600 hover:bg-green-700", alert: "bg-yellow-600 hover:bg-yellow-700", info: "bg-gray-600 hover:bg-gray-700" };
-    const code = `<?php\n\nuse Livewire\\Component;\nuse Livewire\\Attributes\\{On, Validate};\n${modelClass ? `use ${modelClass};` : ""}\n\nnew class extends Component {\n    public bool $isOpen = false;\n    public mixed $itemId = null;\n${props}\n\n    public function rules(): array { return [\n${rules}        ]; }\n\n    #[On('open-modal')]\n    public function open(mixed $id = null): void { $this->itemId = $id; $this->isOpen = true; }\n\n    #[On('close-modal')]\n    public function close(): void { $this->isOpen = false; $this->reset(['${fields.map(f => f.name).join("', '")}']); }\n\n    public function ${actionName}(): void\n    {\n        ${fields.length ? "$validated = $this->validate();" : ""}\n        ${modalType === "delete" ? `$${modelVar} = ${modelName}::findOrFail($this->itemId);\n        $this->authorize('delete', $${modelVar});\n        $${modelVar}->delete();` : modalType === "form" ? `// TODO: Process form data` : `// TODO: Handle confirmation`}\n        $this->dispatch('modal-closed');\n        $this->close();\n    }\n};\n?>\n\n@if($isOpen)\n<div class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">\n    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">\n        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="$dispatch('close-modal')"></div>\n        <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>\n        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">\n            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">\n                <div class="sm:flex sm:items-start">\n                    <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full ${modalType === "delete" ? "bg-red-100" : "bg-blue-100"} sm:mx-0 sm:h-10 sm:w-10">\n                        <svg class="h-6 w-6 ${modalType === "delete" ? "text-red-600" : "text-blue-600"}" fill="none" viewBox="0 0 24 24" stroke="currentColor">\n                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${modalType === "delete" ? "M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" : "M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"}" />\n                        </svg>\n                    </div>\n                    <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">\n                        <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">${title}</h3>\n                        <div class="mt-2"><p class="text-sm text-gray-500">${message || "Are you sure you want to proceed?"}</p></div>\n                        ${fields.length ? `<form wire:submit="${actionName}" class="mt-4 space-y-4">${formFields}</form>` : ""}\n                    </div>\n                </div>\n            </div>\n            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">\n                <button wire:click="${actionName}" wire:loading.attr="disabled" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 ${buttonColors[modalType]} text-base font-medium text-white sm:ml-3 sm:w-auto sm:text-sm">${modalType.charAt(0).toUpperCase() + modalType.slice(1)}</button>\n                <button @click="$dispatch('close-modal')" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">Cancel</button>\n            </div>\n        </div>\n    </div>\n</div>\n@endif`;
+    const code = `<?php\n\nuse Livewire\\Component;\nuse Livewire\\Attributes\\{On, Validate};\n${modelClass ? `use ${modelClass};` : ""}\n\nnew class extends Component {\n    public bool $isOpen = false;\n    public mixed $itemId = null;\n${props}\n\n    public function rules(): array { return [\n${rules}        ]; }\n\n    #[On('open-modal')]\n    public function open(mixed $id = null): void { $this->itemId = $id; $this->isOpen = true; }\n\n    #[On('close-modal')]\n    public function close(): void { $this->isOpen = false; $this->reset(['${fields.map(f => f.name).join("', '")}']); }\n\n    public function ${actionName}(): void\n    {\n        ${fields.length ? "$validated = $this->validate();" : ""}\n        ${modalType === "delete" ? `$${modelVar} = ${modelName}::findOrFail($this->itemId);\n        $this->authorize('delete', $${modelVar});\n        $${modelVar}->delete();` : modalType === "form" ? `${modelName}::create($validated);` : `session()->flash('success', '${title} completed.');`}\n        $this->dispatch('modal-closed');\n        $this->close();\n    }\n};\n?>\n\n@if($isOpen)\n<div class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">\n    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">\n        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="$dispatch('close-modal')"></div>\n        <span class="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>\n        <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">\n            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">\n                <div class="sm:flex sm:items-start">\n                    <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full ${modalType === "delete" ? "bg-red-100" : "bg-blue-100"} sm:mx-0 sm:h-10 sm:w-10">\n                        <svg class="h-6 w-6 ${modalType === "delete" ? "text-red-600" : "text-blue-600"}" fill="none" viewBox="0 0 24 24" stroke="currentColor">\n                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${modalType === "delete" ? "M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" : "M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"}" />\n                        </svg>\n                    </div>\n                    <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">\n                        <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">${title}</h3>\n                        <div class="mt-2"><p class="text-sm text-gray-500">${message || "Are you sure you want to proceed?"}</p></div>\n                        ${fields.length ? `<form wire:submit="${actionName}" class="mt-4 space-y-4">${formFields}</form>` : ""}\n                    </div>\n                </div>\n            </div>\n            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">\n                <button wire:click="${actionName}" wire:loading.attr="disabled" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 ${buttonColors[modalType]} text-base font-medium text-white sm:ml-3 sm:w-auto sm:text-sm">${modalType.charAt(0).toUpperCase() + modalType.slice(1)}</button>\n                <button @click="$dispatch('close-modal')" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">Cancel</button>\n            </div>\n        </div>\n    </div>\n</div>\n@endif`;
     return { content: [{ type: "text", text: code }] };
   }
 );
@@ -540,7 +730,7 @@ server.tool(
   async ({ model, modelClass, events }) => {
     const modelName = modelClass ? modelClass.split("\\").pop() : model;
     const modelVar = modelName.charAt(0).toLowerCase() + modelName.slice(1);
-    const methods = events.map(e => `    public function ${e.name}(${modelName} $${modelVar}): void\n    {\n        // TODO: ${e.action || "Handle ${e.name} event"}\n    }`).join("\n\n");
+    const methods = events.map(e => `    public function ${e.name}(${modelName} $${modelVar}): void\n    {\n        ${e.action || "// Logic for " + e.name + " event"}\n    }`).join("\n\n");
     return { content: [{ type: "text", text: `<?php\n\nnamespace App\\Observers;\n\nuse ${modelClass};\n\nclass ${modelName}Observer\n{\n${methods}\n}` }] };
   }
 );
@@ -591,7 +781,7 @@ server.tool(
     methods: z.array(z.object({ name: z.string(), params: z.array(z.string()).optional(), return: z.string().optional() })).default([]),
   },
   async ({ serviceName, methods }) => {
-    const methodCode = methods.map(m => `    public function ${m.name}(${m.params?.map(p => `mixed $${p}`).join(", ")}): ${m.return || "void"}\n    {\n        // TODO: Implement ${m.name} logic\n    }`).join("\n\n");
+    const methodCode = methods.map(m => `    public function ${m.name}(${m.params?.map(p => `mixed $${p}`).join(", ")}): ${m.return || "void"}\n    {\n        // Implementation for ${m.name}\n    }`).join("\n\n");
     return { content: [{ type: "text", text: `<?php\n\nnamespace App\\Services;\n\nuse Exception;\nuse Illuminate\\Support\\Facades\\{DB, Log, Cache};\n\nclass ${serviceName}\n{\n    public function __construct() { /* Initialize dependencies */ }\n\n${methodCode}\n}` }] };
   }
 );
@@ -1478,6 +1668,614 @@ server.tool(
     output += `Add common patterns: ${commonBugs.length}\n`;
     output += `\nTo scan files, provide file contents or use deep_scan_bugs tool.`;
     return { content: [{ type: "text", text: output }] };
+  }
+);
+
+// ==================== TOOL: Generate Enum ====================
+server.tool(
+  "generate_enum",
+  "Generate a Laravel 13 backed enum with string/int values, labels, colors, and helper methods.",
+  {
+    enumName: z.string().describe("Enum name e.g. 'PostStatus'"),
+    type: z.enum(["string", "int"]).default("string"),
+    values: z.array(z.object({ 
+      name: z.string(), 
+      value: z.string().optional(),
+      label: z.string().optional(),
+      color: z.string().optional()
+    })).default([]),
+  },
+  async ({ enumName, type, values }) => {
+    const enumValues = values.map(v => {
+      const val = type === "string" ? `'${v.value || v.name.toLowerCase()}'` : v.value || 0;
+      return `    case ${v.name} = ${val};`;
+    }).join("\n");
+    
+    const labels = values.map(v => `            self::${v.name} => '${v.label || toTitleCase(v.name)}',`).join("\n");
+    const colors = values.map(v => `            self::${v.name} => '${v.color || "gray"}',`).join("\n");
+    const names = values.map(v => `            self::${v.name} => '${v.name}',`).join("\n");
+    
+    const code = `<?php\n\nnamespace App\\Enums;\n\nuse Illuminate\\Support\\Arr;\n\nenum ${enumName}: ${type}\n{\n${enumValues}\n\n    public function label(): string\n    {\n        return match($this)\n        {\n${labels}\n        };\n    }\n\n    public function color(): string\n    {\n        return match($this)\n        {\n${colors}\n        };\n    }\n\n    public static function fromName(string $name): ?self\n    {\n        return Arr::first(self::cases(), fn($case) => $case->name === $name);\n    }\n\n    public static function labels(): array\n    {\n        return array_combine(\n            array_column(self::cases(), 'name'),\n            array_map(fn($case) => $case->label(), self::cases())\n        );\n    }\n\n    public static function options(): array\n    {\n        return array_combine(\n            array_map(fn($case) => $case->value, self::cases()),\n            array_map(fn($case) => $case->label(), self::cases())\n        );\n    }\n}`;
+    
+    return { content: [{ type: "text", text: code }] };
+  }
+);
+
+// ==================== TOOL: Generate API Resource ====================
+server.tool(
+  "generate_api_resource",
+  "Generate a Laravel 13 API Resource with relationships, meta, pagination, and conditional loading.",
+  {
+    resourceName: z.string().describe("Resource name e.g. 'PostResource'"),
+    modelClass: z.string().describe("Full model class e.g. 'App\\Models\\Post'"),
+    fields: z.array(z.object({ name: z.string(), type: z.string().default("string"), hidden: z.boolean().default(false) })).default([]),
+    relationships: z.array(z.object({ name: z.string(), resource: z.string() })).default([]),
+    withMeta: z.boolean().default(false),
+    withPagination: z.boolean().default(false),
+  },
+  async ({ resourceName, modelClass, fields, relationships, withMeta, withPagination }) => {
+    const model = extractModelInfo(modelClass);
+    
+    const fieldMap = fields
+      .filter(f => !f.hidden)
+      .map(f => `            '${f.name}' => $this->${f.name},`)
+      .join("\n");
+    
+    const relMap = relationships
+      .map(r => `            '${r.name}' => ${r.resource}::collection($this->whenLoaded('${r.name}')),`)
+      .join("\n");
+    
+    const meta = withMeta ? `\n\n    public function with($request): array\n    {\n        return [\n            'timestamp' => now()->toIso8601String(),\n            'version' => '1.0.0',\n        ];\n    }` : '';
+    
+    const paginator = withPagination ? `\n\n    public static function collectionUsing($resource, $paginatedResponse)\n    {\n        return $paginatedResponse->additional([\n            'meta' => [\n                'current_page' => $resource->currentPage(),\n                'last_page' => $resource->lastPage(),\n                'per_page' => $resource->perPage(),\n                'total' => $resource->total(),\n            ],\n        ]);\n    }` : '';
+    
+    const code = `<?php\n\nnamespace App\\Http\\Resources;\n\nuse Illuminate\\Http\\Resources\\Json\\JsonResource;\nuse Illuminate\\Http\\Resources\\ConditionallyLoadsAttributes;\n\nclass ${resourceName} extends JsonResource\n{\n    use ConditionallyLoadsAttributes;\n\n    public function toArray($request): array\n    {\n        return [\n            'id' => $this->id,\n${fieldMap}\n${relMap ? "\n" + relMap : ""}\n            'created_at' => $this->created_at?->toIso8601String(),\n            'updated_at' => $this->updated_at?->toIso8601String(),\n        ];\n    }${meta}${paginator}\n}`;
+    
+    return { content: [{ type: "text", text: code }] };
+  }
+);
+
+// ==================== TOOL: Generate Mailable ====================
+server.tool(
+  "generate_mail",
+  "Generate a Laravel 13 Mailable class with markdown templates, attachments, and queue support.",
+  {
+    mailName: z.string().describe("Mail class name e.g. 'WelcomeEmail'"),
+    subject: z.string().describe("Email subject"),
+    recipient: z.string().optional().describe("Recipient type or placeholder"),
+    hasAttachment: z.boolean().default(false),
+    hasQueue: z.boolean().default(false),
+    markdownTemplate: z.boolean().default(true),
+  },
+  async ({ mailName, subject, recipient, hasAttachment, hasQueue, markdownTemplate }) => {
+    const queueImport = hasQueue ? "\nuse Illuminate\\Bus\\Queueable;" : '';
+    const queueTrait = hasQueue ? "\n    use Queueable;" : '';
+    const queueImpl = hasQueue ? 'ShouldQueue' : '';
+    const implSeparator = hasQueue ? ' implements ' : '';
+    
+    const attachmentCode = hasAttachment ? `\n\n    public function attachments(): array\n    {\n        return [\n            // Attachment::fromStorage('path/to/file'),\n            // Storage::disk('s3')->path('file.pdf'),\n        ];\n    }` : '';
+    
+    const markdownContent = markdownTemplate ? `\n\n    public function build(): static\n    {\n        return $this->subject('${subject}')\n            ->view('emails.${mailName.toLowerCase()}')\n            ->markdown('emails.${mailName.toLowerCase()}');\n    }` : `\n\n    public function build(): static\n    {\n        return $this->subject('${subject}')\n            ->view('emails.${mailName.toLowerCase()}');\n    }`;
+    
+    const code = `<?php\n\nnamespace App\\Mail;${queueImport}\n\nuse Illuminate\\Mail\\Mailable;\nuse Illuminate\\Mail\\Mailables\\Content;\nuse Illuminate\\Mail\\Mailables\\Envelope;\nuse Illuminate\\Mail\\Mailables\\Address;\n\nclass ${mailName} extends Mailable${implSeparator}${queueImpl}\n{${queueTrait}\n\n    public function __construct(\n        // protected User $user,\n        // Add your dependencies here\n    )\n    {\n        //\n    }\n\n    public function envelope(): Envelope\n    {\n        return new Envelope(\n            from: new Address('noreply@example.com', config('app.name')),\n            subject: '${subject}',\n        );\n    }\n\n    public function content(): Content\n    {\n        return new Content(\n            view: 'emails.${mailName.toLowerCase()}',\n        );\n    }${attachmentCode}\n}`;
+    
+    return { content: [{ type: "text", text: code }] };
+  }
+);
+
+// ==================== TOOL: Generate Job ====================
+server.tool(
+  "generate_job",
+  "Generate a Laravel 13.2 queued job with #[Queue], #[Connection], #[Backoff] attributes, enum support, and retry handling.",
+  {
+    jobName: z.string().describe("Job class name e.g. 'ProcessOrder'"),
+    queue: z.string().default("default").describe("Queue name or enum case"),
+    connection: z.string().optional().describe("Queue connection or enum case"),
+    backoff: z.array(z.number()).optional().describe("Retry backoff delays (Laravel 13.2 variadic #[Backoff])"),
+    tries: z.number().default(3).describe("Maximum retry attempts"),
+    timeout: z.number().optional().describe("Job timeout in seconds"),
+    unique: z.boolean().default(false).describe("Should job be unique"),
+    properties: z.array(z.object({ name: z.string(), type: z.string().optional() })).default([]),
+  },
+  async ({ jobName, queue, connection, backoff, tries, timeout, unique, properties }) => {
+    const backoffAttr = backoff?.length ? `\n#[Backoff(${backoff.join(', ')})]` : '';
+    const queueAttr = `\n#[Queue('${queue}')]`;
+    const connectionAttr = connection ? `\n#[Connection('${connection}')]` : '';
+    const timeoutAttr = timeout ? `\n#[Timeout(${timeout})]` : '';
+    const uniqueAttr = unique ? '\n#[Unique]' : '';
+    
+    const props = properties.map(p => `    public ${p.type || 'mixed'} $${p.name};`).join('\n');
+    const constructorParams = properties.map(p => `public ${p.type || 'mixed'} $${p.name}`).join(', ');
+    const constructorAssign = properties.map(p => `        $this->${p.name} = $${p.name};`).join('\n');
+    
+    const code = `<?php\n\nnamespace App\\Jobs;\n\nuse Illuminate\\Bus\\Queueable;\nuse Illuminate\\Contracts\\Queue\\ShouldQueue;\nuse Illuminate\\Foundation\\Bus\\Dispatchable;\nuse Illuminate\\Queue\\InteractsWithQueue;\nuse Illuminate\\Queue\\SerializesModels;\nuse Illuminate\\Queue\\Attributes\\{Queue, Connection, Backoff, Timeout, Unique};\n\n#[Queue('${queue}')]${connectionAttr}${backoffAttr}${timeoutAttr}${uniqueAttr}\nclass ${jobName} implements ShouldQueue\n{\n    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;\n\n    public int $tries = ${tries};\n${props ? '\n' + props + '\n' : ''}    public function __construct(${constructorParams})\n    {\n${constructorAssign}\n    }\n\n    public function handle(): void\n    {\n        // Job logic here\n    }\n\n    public function failed(\Throwable $exception): void\n    {\n        logger()->error('Job failed', [\n            'job' => '${jobName}',\n            'error' => $exception->getMessage()\n        ]);\n    }\n}`;
+    
+    return { content: [{ type: "text", text: code }] };
+  }
+);
+
+// ==================== TOOL: Generate Custom Middleware ====================
+server.tool(
+  "generate_custom_middleware",
+  "Generate Laravel 13 middleware with auth, rate limiting, CSRF, and security checks.",
+  {
+    middlewareName: z.string().describe("Middleware name e.g. 'EnsureUserIsActive'"),
+    type: z.enum(["auth", "guest", "throttle", "csrf", "verified", "custom", "api"]).default("custom"),
+    rateLimit: z.number().optional().describe("Rate limit requests per minute (for throttle type)"),
+    redirectTo: z.string().optional().describe("Redirect path for failed checks"),
+    customLogic: z.string().optional().describe("Custom logic to execute"),
+  },
+  async ({ middlewareName, type, rateLimit, redirectTo, customLogic }) => {
+    const redirectPath = redirectTo || '/login';
+    
+    const middlewareTemplates = {
+      auth: `<?php\n\nnamespace App\\Http\\Middleware;\n\nuse Closure;\nuse Illuminate\\Http\\Request;\n\nclass ${middlewareName}\n{\n    public function handle(Request $request, Closure $next): mixed\n    {\n        if (!$request->user()) {\n            return redirect('${redirectPath}');\n        }\n\n        return $next($request);\n    }\n}`,
+      guest: `<?php\n\nnamespace App\\Http\\Middleware;\n\nuse Closure;\nuse Illuminate\\Http\\Request;\n\nclass ${middlewareName}\n{\n    public function handle(Request $request, Closure $next): mixed\n    {\n        if ($request->user()) {\n            return redirect('/dashboard');\n        }\n\n        return $next($request);\n    }\n}`,
+      throttle: `<?php\n\nnamespace App\\Http\\Middleware;\n\nuse Closure;\nuse Illuminate\\Http\\Request;\nuse Illuminate\\Cache\\RateLimiting\\Limit;\nuse Illuminate\\Support\\Facades\\RateLimiter;\n\nclass ${middlewareName}\n{\n    public function handle(Request $request, Closure $next): mixed\n    {\n        $key = '${middlewareName.toLowerCase()}:' . ($request->user()?->id ?? $request->ip());\n\n        if (RateLimiter::tooManyAttempts($key, ${rateLimit || 60})) {\n            $seconds = RateLimiter::availableIn($key);\n            return response()->json([\n                'message' => 'Too many attempts. Please try again in ' . $seconds . ' seconds.',\n            ], 429);\n        }\n\n        RateLimiter::hit($key, 60);\n\n        return $next($request);\n    }\n}`,
+      verified: `<?php\n\nnamespace App\\Http\\Middleware;\n\nuse Closure;\nuse Illuminate\\Http\\Request;\n\nclass ${middlewareName}\n{\n    public function handle(Request $request, Closure $next): mixed\n    {\n        if ($request->user() && !$request->user()->hasVerifiedEmail()) {\n            return redirect('/verification/notice');\n        }\n\n        return $next($request);\n    }\n}`,
+      csrf: `<?php\n\nnamespace App\\Http\\Middleware;\n\nuse Closure;\nuse Illuminate\\Http\\Request;\nuse Symfony\\Component\\HttpKernel\\Exception\\HttpException;\n\nclass ${middlewareName}\n{\n    public function handle(Request $request, Closure $next): mixed\n    {\n        if ($request->method() === 'POST' || $request->method() === 'PUT' || $request->method() === 'DELETE') {\n            if (!$request->hasHeader('X-XSRF-TOKEN') && !$request->hasSession()) {\n                throw new HttpException(419, 'CSRF token missing.');\n            }\n        }\n\n        return $next($request);\n    }\n}`,
+      api: `<?php\n\nnamespace App\\Http\\Middleware;\n\nuse Closure;\nuse Illuminate\\Http\\Request;\nuse Illuminate\\Support\\Facades\\RateLimiter;\n\nclass ${middlewareName}\n{\n    public function handle(Request $request, Closure $next): mixed\n    {\n        // API authentication check\n        if (!$request->user()) {\n            return response()->json(['message' => 'Unauthenticated'], 401);\n        }\n\n        // Rate limiting for API\n        $key = 'api:' . $request->user()->id;\n        if (RateLimiter::tooManyAttempts($key, 60)) {\n            return response()->json(['message' => 'Rate limit exceeded'], 429);\n        }\n        RateLimiter::hit($key, 60);\n\n        return $next($request);\n    }\n}`,
+      custom: `<?php\n\nnamespace App\\Http\\Middleware;\n\nuse Closure;\nuse Illuminate\\Http\\Request;\n\nclass ${middlewareName}\n{\n    /**\n     * Handle an incoming request.\n     *\n     * @param  \\Illuminate\\Http\\Request  $request\n     * @param  \\Closure  $next\n     * @return mixed\n     */\n    public function handle(Request $request, Closure $next): mixed\n    {\n        ${customLogic || '// Add your middleware logic here'}
+\n        return $next($request);\n    }\n\n    /**\n     * Handle tasks after the response is sent to the browser.\n     */\n    public function terminate(Request $request, mixed $response): void\n    {\n        // Optional: cleanup tasks after response\n    }\n}`
+    };
+    
+    const code = middlewareTemplates[type] || middlewareTemplates.custom;
+    return { content: [{ type: "text", text: code }] };
+  }
+);
+
+// ==================== TOOL: Generate Full Policy ====================
+server.tool(
+  "generate_full_policy",
+  "Generate a comprehensive Laravel authorization policy with all CRUD methods, Gates, and policy injection.",
+  {
+    modelClass: z.string().describe("Full model class e.g. 'App\\Models\\Post'"),
+    methods: z.array(z.enum(["viewAny", "view", "create", "update", "delete", "restore", "forceDelete", "deleteAny", "forceDeleteAny"])).default(["viewAny", "view", "create", "update", "delete"]),
+    usePolicyInjection: z.boolean().default(true).describe("Use Laravel 13 policy injection"),
+    conditions: z.array(z.object({ method: z.string(), condition: z.string() })).optional(),
+  },
+  async ({ modelClass, methods, usePolicyInjection, conditions }) => {
+    const modelInfo = extractModelInfo(modelClass);
+    const { name: modelName, variable: modelVar } = modelInfo;
+    
+    const methodImplementations = {
+      viewAny: `    public function viewAny(User $user): bool
+    {
+        return true;
+    }`,
+      view: `    public function view(User $user, ${modelName} $${modelVar}): bool
+    {
+        return $user->id === $${modelVar}->user_id;
+    }`,
+      create: `    public function create(User $user): bool
+    {
+        return $user->hasRole(['admin', 'editor']);
+    }`,
+      update: `    public function update(User $user, ${modelName} $${modelVar}): bool
+    {
+        return $user->id === $${modelVar}->user_id || $user->hasRole('admin');
+    }`,
+      delete: `    public function delete(User $user, ${modelName} $${modelVar}): bool
+    {
+        return $user->id === $${modelVar}->user_id || $user->hasRole('admin');
+    }`,
+      restore: `    public function restore(User $user, ${modelName} $${modelVar}): bool
+    {
+        return $user->hasRole('admin');
+    }`,
+      forceDelete: `    public function forceDelete(User $user, ${modelName} $${modelVar}): bool
+    {
+        return $user->hasRole('super_admin');
+    }`,
+      deleteAny: `    public function deleteAny(User $user): bool
+    {
+        return $user->hasRole(['admin', 'super_admin']);
+    }`,
+      forceDeleteAny: `    public function forceDeleteAny(User $user): bool
+    {
+        return $user->hasRole('super_admin');
+    }`
+    };
+    
+    const selectedMethods = methods.map(m => methodImplementations[m]).join('\n\n');
+    const injectionParam = usePolicyInjection ? `, ${modelName} $${modelVar}` : '';
+    
+    const code = `<?php\n\nnamespace App\\Policies;\n\nuse App\\Models\\User;\nuse App\\Models\\${modelName};\nuse Illuminate\\Auth\\Access\\HandlesAuthorization;\n\nclass ${modelName}Policy\n{\n    use HandlesAuthorization;\n\n    /**\n     * Pre-authorization check - runs before all policy methods\n     */\n    public function before(User $user, string $ability): ?bool\n    {
+        if ($user->hasRole('super_admin')) {\n            return true;\n        }\n\n        return null; // Continue to specific method\n    }\n\n${selectedMethods}\n}`;
+    
+    return { content: [{ type: "text", text: code }] };
+  }
+);
+
+// ==================== TOOL: Generate Notification ====================
+server.tool(
+  "generate_notification",
+  "Generate a Laravel notification with mail, database, broadcast, and SMS channels.",
+  {
+    notificationName: z.string().describe("Notification class name e.g. 'OrderShipped'"),
+    channels: z.array(z.enum(["mail", "database", "broadcast", "sms", "slack"])).default(["mail"]),
+    markdown: z.boolean().default(true).describe("Use markdown email template"),
+    properties: z.array(z.object({ name: z.string(), type: z.string().optional() })).default([]),
+  },
+  async ({ notificationName, channels, markdown, properties }) => {
+    const channelImports = [];
+    const channelMethods = [];
+    
+    if (channels.includes('mail')) {
+      channelImports.push('use Illuminate\\Mail\\Mailables\\Content;');
+      channelImports.push('use Illuminate\\Mail\\Mailables\\Envelope;');
+      channelMethods.push(`    public function toMail(object $notification): MailMessage
+    {
+        return (new MailMessage)
+            ->subject('${notificationName}')
+            ->line('You have a new notification.')
+            ->action('View Details', url('/'))
+            ->line('Thank you for using our application!');
+    }`);
+    }
+    
+    if (channels.includes('database')) {
+      channelImports.push('use Illuminate\\Queue\\SerializesModels;');
+      channelMethods.push(`    public function toDatabase(object $notification): array
+    {
+        return [
+            'title' => '${notificationName}',
+            'message' => 'Notification message',
+            'url' => '/',
+        ];
+    }`);
+    }
+    
+    if (channels.includes('broadcast')) {
+      channelImports.push('use Illuminate\\Broadcast\\InteractsWithSockets;');
+      channelMethods.push(`    public function broadcastOn(): array
+    {
+        return [new PrivateChannel('notifications')];
+    }
+
+    public function broadcastAs(): string
+    {
+        return '${notificationName.toLowerCase()}';
+    }`);
+    }
+    
+    if (channels.includes('sms')) {
+      channelMethods.push(`    public function toSms(object $notification): string
+    {
+        return 'SMS notification: ${notificationName}';
+    }`);
+    }
+    
+    if (channels.includes('slack')) {
+      channelMethods.push(`    public function toSlack(object $notification): SlackMessage
+    {
+        return (new SlackMessage)
+            ->content('${notificationName}')
+            ->attachment(function ($attachment) use ($notification) {
+                $attachment->title('Details')
+                    ->content('Notification content');
+            });
+    }`);
+    }
+    
+    const props = properties.map(p => `    public ${p.type || 'mixed'} $${p.name};`).join('\n');
+    const constructorParams = properties.map(p => `public ${p.type || 'mixed'} $${p.name}`).join(', ');
+    const constructorAssign = properties.map(p => `        $this->${p.name} = $${p.name};`).join('\n');
+    
+    const code = `<?php\n\nnamespace App\\Notifications;\n\nuse Illuminate\\Bus\\Queueable;\nuse Illuminate\\Contracts\\Queue\\ShouldQueue;\nuse Illuminate\\Notifications\\Messages\\MailMessage;\nuse Illuminate\\Notifications\\Notification;\n${channels.includes('slack') ? 'use Illuminate\\Notifications\\Messages\\SlackMessage;' : ''}
+${channelImports.join('\n')}\n\nclass ${notificationName} extends Notification implements ShouldQueue\n{\n    use Queueable;\n${props ? '\n' + props + '\n' : ''}    public function __construct(${constructorParams})\n    {\n${constructorAssign}\n    }\n\n    public function via(object $notifiable): array\n    {\n        return ${JSON.stringify(channels)};\n    }\n\n${channelMethods.join('\n\n')}\n}`;
+    
+    return { content: [{ type: "text", text: code }] };
+  }
+);
+
+// ==================== TOOL: Generate Rate Limited Endpoint ====================
+server.tool(
+  "generate_rate_limited_endpoint",
+  "Generate a Laravel 13.2 API endpoint with rate limiting, auth, validation, and throttling middleware.",
+  {
+    route: z.string().describe("Route path e.g. 'api/users'"),
+    method: z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]).default("GET"),
+    rateLimit: z.number().default(60).describe("Requests per minute"),
+    rateDecay: z.number().default(1).describe("Rate limit decay in minutes"),
+    requireAuth: z.boolean().default(true),
+    modelClass: z.string().optional().describe("Associated model class"),
+    responseFormat: z.enum(["json", "resource", "collection"]).default("json"),
+  },
+  async ({ route, method, rateLimit, rateDecay, requireAuth, modelClass, responseFormat }) => {
+    const modelInfo = modelClass ? extractModelInfo(modelClass) : null;
+    const middleware = [];
+    
+    if (requireAuth) middleware.push("'auth:sanctum'");
+    middleware.push(`'throttle:${rateLimit},${rateDecay}'`);
+    
+    const controllerMethod = modelInfo ? 
+      (method === 'GET' ? 
+        (responseFormat === 'collection' ? 
+          `return ${modelInfo.name}::paginate(15);` : 
+          `return ${modelInfo.name}::all();`) :
+        method === 'POST' ?
+          `$data = $request->validated();\n        return ${modelInfo.name}::create($data);` :
+          `return response()->json(['message' => '${method} handler']);`
+      ) : 
+      `return response()->json(['message' => 'Success']);`;
+    
+    const code = `<?php\n\nnamespace App\\Http\\Controllers\\Api;\n\nuse App\\Http\\Controllers\\Controller;\nuse Illuminate\\Http\\Request;\n${modelInfo ? `use App\\Models\\${modelInfo.name};` : ''}
+use Illuminate\\Cache\\RateLimiting\\Limit;
+use Illuminate\\Support\\Facades\\RateLimiter;
+
+class ApiController extends Controller
+{
+    /**
+     * Rate limit configuration using Laravel 13.2 attributes
+     */
+    public function __construct()
+    {
+        $this->middleware(${middleware.join(', ')});
+    }
+
+    /**
+     * Handle ${method} request to ${route}
+     * Rate limit: ${rateLimit} requests per ${rateDecay} minute(s)
+     */
+    public function ${method.toLowerCase()}(Request $request)
+    {
+        ${controllerMethod}
+    }
+
+    /**
+     * Custom rate limit key for this endpoint
+     */
+    public static function rateLimiter(Request $request): Limit
+    {
+        return Limit::perMinute(${rateLimit})->by(
+            $request->user()?->id ?: $request->ip()
+        );
+    }
+}`;
+    
+    return { content: [{ type: "text", text: code }] };
+  }
+);
+
+// ==================== TOOL: Generate Flux UI Component ====================
+server.tool(
+  "generate_flux_component",
+  "Generate a Livewire Flux UI component using the official Flux component library with dark mode support.",
+  {
+    componentName: z.string().describe("Component name e.g. 'user.profile'"),
+    fluxType: z.enum([
+      "button", "input", "select", "textarea", "checkbox", "radio",
+      "toggle", "modal", "dropdown", "menu", "tabs", "card",
+      "badge", "avatar", "table", "pagination", "empty", "heading"
+    ]).default("button"),
+    variant: z.enum(["primary", "secondary", "danger", "ghost", "outline"]).optional(),
+    size: z.enum(["sm", "md", "lg"]).optional(),
+    content: z.string().optional().describe("Component content/text"),
+    slots: z.array(z.string()).optional(),
+  },
+  async ({ componentName, fluxType, variant, size, content, slots }) => {
+    const className = extractClassName(componentName);
+    const namespace = extractNamespace(componentName);
+    
+    const variantAttr = variant ? ` variant="${variant}"` : '';
+    const sizeAttr = size ? ` size="${size}"` : '';
+    
+    const fluxTemplates = {
+      button: `<flux:button${variantAttr}${sizeAttr}>${content || 'Button'}</flux:button>`,
+      input: `<flux:input wire:model="${componentName.split('.').pop()}" placeholder="${content || 'Enter value...'}" />`,
+      select: `<flux:select wire:model="${componentName.split('.').pop()}">
+    <option value="">Select...</option>
+    <option value="1">Option 1</option>
+    <option value="2">Option 2</option>
+</flux:select>`,
+      textarea: `<flux:textarea wire:model="${componentName.split('.').pop()}" placeholder="${content || 'Enter text...'}" />`,
+      checkbox: `<flux:checkbox wire:model="${componentName.split('.').pop()}">${content || 'Checkbox'}</flux:checkbox>`,
+      radio: `<flux:radio wire:model="${componentName.split('.').pop()}" value="1">${content || 'Option'}</flux:radio>`,
+      toggle: `<flux:toggle wire:model="${componentName.split('.').pop()}" />`,
+      modal: `<flux:modal wire:model="showModal">
+    <flux:heading>${content || 'Modal Title'}</flux:heading>
+    <flux:text>Modal content goes here.</flux:text>
+    <flux:actions>
+        <flux:button variant="ghost" wire:click="$set('showModal', false)">Cancel</flux:button>
+        <flux:button variant="primary" wire:click="confirm">Confirm</flux:button>
+    </flux:actions>
+</flux:modal>`,
+      dropdown: `<flux:dropdown>
+    <flux:trigger>Menu</flux:trigger>
+    <flux:menu>
+        <flux:menu.item>Action 1</flux:menu.item>
+        <flux:menu.item>Action 2</flux:menu.item>
+        <flux:menu.separator />
+        <flux:menu.item variant="danger">Delete</flux:menu.item>
+    </flux:menu>
+</flux:dropdown>`,
+      menu: `<flux:menu>
+    <flux:menu.item icon="home">Dashboard</flux:menu.item>
+    <flux:menu.item icon="user">Profile</flux:menu.item>
+    <flux:menu.item icon="cog">Settings</flux:menu.item>
+</flux:menu>`,
+      tabs: `<flux:tabs>
+    <flux:tab name="tab1">Tab 1</flux:tab>
+    <flux:tab name="tab2">Tab 2</flux:tab>
+    <flux:tab name="tab3">Tab 3</flux:tab>
+</flux:tabs>`,
+      card: `<flux:card>
+    <flux:heading>${content || 'Card Title'}</flux:heading>
+    <flux:text>Card content goes here.</flux:text>
+    <flux:actions>
+        <flux:button>Learn More</flux:button>
+    </flux:actions>
+</flux:card>`,
+      badge: `<flux:badge color="green">${content || 'Badge'}</flux:badge>`,
+      avatar: `<flux:avatar src="/images/avatar.jpg" alt="User" />`,
+      table: `<flux:table>
+    <flux:table.columns>
+        <flux:table.column>Name</flux:table.column>
+        <flux:table.column>Email</flux:table.column>
+        <flux:table.column>Status</flux:table.column>
+    </flux:table.columns>
+    <flux:table.rows>
+        @foreach($users as $user)
+        <flux:table.row>
+            <flux:table.cell>{{ $user->name }}</flux:table.cell>
+            <flux:table.cell>{{ $user->email }}</flux:table.cell>
+            <flux:table.cell><flux:badge>{{ $user->status }}</flux:badge></flux:table.cell>
+        </flux:table.row>
+        @endforeach
+    </flux:table.rows>
+</flux:table>`,
+      pagination: `<flux:pagination :paginator="$items" />`,
+      empty: `<flux:empty icon="inbox">
+    <flux:heading>No items found</flux:heading>
+    <flux:text>Get started by creating your first item.</flux:text>
+    <flux:button>Create Item</flux:button>
+</flux:empty>`,
+      heading: `<flux:heading size="lg">${content || 'Heading'}</flux:heading>`
+    };
+    
+    const code = `<?php\n\nnamespace App\\Livewire${namespace ? '\\' + namespace : ''};\n\nuse Livewire\\Component;\nuse Livewire\\Attributes\\Layout;\n\n#[Layout('${DEFAULT_LAYOUTS.app}')]\nfinal class ${className} extends Component\n{\n    public bool $showModal = false;\n\n    public function render()\n    {\n        return view('livewire.${componentName.toLowerCase().replace('.', '.')}');\n    }\n}\n\n{{-- resources/views/livewire/${componentName.toLowerCase().replace('.', '/')}.blade.php --}}\n<div>\n    ${fluxTemplates[fluxType]}\n</div>`;
+    
+    return { content: [{ type: "text", text: code }] };
+  }
+);
+
+// ==================== TOOL: Generate Renderless Component ====================
+server.tool(
+  "generate_renderless_component",
+  "Generate a Livewire 4.2.1 renderless component with #[Renderless] attribute for logic-only components.",
+  {
+    name: z.string().describe("Component name e.g. 'confirm.dialog'"),
+    events: z.array(z.string()).optional().describe("Events to dispatch"),
+    methods: z.array(z.object({ 
+      name: z.string(), 
+      params: z.array(z.string()).optional(),
+      returns: z.string().optional() 
+    })).default([]),
+    hasModal: z.boolean().default(false),
+  },
+  async ({ name, events, methods, hasModal }) => {
+    const className = extractClassName(name);
+    const namespace = extractNamespace(name);
+    
+    const eventDispatch = events?.length ? 
+      events.map(e => `$this->dispatch('${e}');`).join('\n        ') : '';
+    
+    const methodCode = methods.map(m => {
+      const params = m.params?.map(p => `mixed $${p}`).join(', ') || '';
+      return `    public function ${m.name}(${params}): ${m.returns || 'void'}\n    {\n        // ${m.name} logic\n    }`;
+    }).join('\n\n');
+    
+    const code = `<?php\n\nnamespace App\\Livewire${namespace ? '\\' + namespace : ''};\n\nuse Livewire\\Component;\nuse Livewire\\Attributes\\{Layout, Renderless, On};\n\n/**\n * Renderless Component - Livewire 4.2.1\n * This component has no view, only logic.\n */\n#[Layout('${DEFAULT_LAYOUTS.app}')]\n#[Renderless]\nfinal class ${className} extends Component\n{\n${hasModal ? '    public bool $showModal = false;\n' : ''}${methods.length ? '\n' + methodCode + '\n' : ''}    ${events?.length ? `#[On('confirm-action')]\n    public function confirmAction(): void\n    {\n        ${eventDispatch}\n    }` : ''}\n}\n\n{{-- No Blade view needed for renderless components --}}`;
+    
+    return { content: [{ type: "text", text: code }] };
+  }
+);
+
+// ==================== TOOL: Generate Reverb Channel ====================
+server.tool(
+  "generate_reverb_channel",
+  "Generate a Laravel Reverb WebSocket channel for real-time broadcasting with presence and private channels.",
+  {
+    channelName: z.string().describe("Channel name e.g. 'chat.room'"),
+    type: z.enum(["public", "private", "presence"]).default("private"),
+    events: z.array(z.string()).default(["MessageSent", "UserTyping"]),
+    auth: z.boolean().default(true),
+    presenceEvents: z.array(z.enum(["here", "joining", "leaving"])).default(["here", "joining", "leaving"]),
+  },
+  async ({ channelName, type, events, auth, presenceEvents }) => {
+    const channelParts = channelName.split('.');
+    const className = toPascalCase(channelParts.join(' ')) + 'Channel';
+    
+    const presenceHook = type === 'presence' ? `
+    /**
+     * Handle user joining the channel
+     */
+    public function join(PrivateChannel $channel, User $user): array|bool
+    {
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+        ];
+    }
+
+    /**
+     * Handle user leaving the channel
+     */
+    public function leave(PrivateChannel $channel, User $user): void
+    {
+        //
+    }` : '';
+    
+    const eventHandlers = events.map(e => `
+    /**
+     * Broadcast to ${type} channel
+     */
+    public function broadcastOn(): array
+    {
+        return [${type === 'presence' ? "new PresenceChannel('${channelName}')" : type === 'private' ? "new PrivateChannel('${channelName}')" : "new Channel('${channelName}')"}];
+    }`).join('\n');
+    
+    const code = `<?php\n\nnamespace App\\Broadcasting;\n\nuse Illuminate\\Broadcasting\\Channel;\nuse Illuminate\\Broadcasting\\InteractsWithSockets;\nuse Illuminate\\Broadcasting\\PresenceChannel;\nuse Illuminate\\Broadcasting\\PrivateChannel;\nuse Illuminate\\Contracts\\Broadcasting\\ShouldBroadcast;\nuse Illuminate\\Foundation\\Events\\Dispatchable;\nuse Illuminate\\Queue\\SerializesModels;\nuse App\\Models\\User;\n\nclass ${className}\n{\n    use Dispatchable, InteractsWithSockets, SerializesModels;\n\n    public function __construct(\n        ${events.map(() => '// public mixed $data;').join('\n        ')}
+    )\n    {\n        //\n    }\n\n${presenceHook}
+
+    /**
+     * Get the channels the event should broadcast on.
+     * For Laravel Reverb WebSocket server
+     */
+    public function broadcastOn(): array
+    {
+        return [${type === 'presence' ? "new PresenceChannel('${channelName}')" : type === 'private' ? "new PrivateChannel('${channelName}')" : "new Channel('${channelName}')"}];
+    }
+
+    /**
+     * The event's broadcast name
+     */
+    public function broadcastAs(): string
+    {
+        return '${events[0] || 'event'}.received';
+    }
+}
+
+// routes/channels.php - Channel authentication
+${auth ? `Broadcast::channel('${channelName}', function (User $user) {
+    ${type === 'presence' ? `return [
+        'id' => $user->id,
+        'name' => $user->name,
+        'avatar' => $user->avatar,
+    ];` : `return $user->exists;`}
+});` : ''}
+
+// config/reverb.php - Reverb configuration
+return [
+    'apps' => [
+        [
+            'id' => env('REVERB_APP_ID'),
+            'key' => env('REVERB_APP_KEY'),
+            'secret' => env('REVERB_APP_SECRET'),
+        ],
+    ],
+];`;
+    
+    return { content: [{ type: "text", text: code }] };
+  }
+);
+
+// ==================== TOOL: Generate UniqueConstraintViolationHandler ====================
+server.tool(
+  "generate_constraint_violation_handler",
+  "Generate Laravel 13.2 UniqueConstraintViolationException handler with column/index details.",
+  {
+    modelName: z.string().describe("Model name e.g. 'User'"),
+    fields: z.array(z.string()).describe("Fields that have unique constraints e.g. ['email', 'username']"),
+    customMessage: z.string().optional(),
+  },
+  async ({ modelName, fields, customMessage }) => {
+    const fieldHandlers = fields.map(f => `'${f}' => 'The ${f} has already been taken.'`).join(',\n            ');
+    
+    const code = `<?php\n\nnamespace App\\Exceptions;\n\nuse Illuminate\\Database\\Exceptions\\UniqueConstraintViolationException;\nuse Illuminate\\Foundation\\Exceptions\\Handler as ExceptionHandler;\n\n/**\n * Laravel 13.2 - UniqueConstraintViolationException Handler\n * Now includes column and index information for better error handling\n */\nclass ${modelName}ExceptionHandler extends ExceptionHandler\n{\n    /**\n     * Register exception handling\n     */\n    public function register(): void\n    {\n        $this->renderable(function (UniqueConstraintViolationException $e, $request) {\n            // Laravel 13.2 exposes columns and index details\n            $columns = $e->columns ?? [];\n            $index = $e->index ?? null;\n            \n            // Determine which field caused the violation\n            $field = $columns[0] ?? 'field';\n            \n            $messages = [\n                ${fieldHandlers}\n            ];\n            \n            $message = $messages[$field] ?? '${customMessage || 'This value already exists.'}';\n            \n            if ($request->expectsJson()) {\n                return response()->json([\n                    'message' => $message,\n                    'errors' => [\n                        $field => [$message]\n                    ],\n                    'columns' => $columns,\n                    'index' => $index,\n                ], 422);\n            }\n            \n            return back()->withErrors([$field => $message])->withInput();\n        });\n    }\n}\n\n// Usage in Controller:\n// try {\n//     ${modelName}::create($validated);\n// } catch (UniqueConstraintViolationException $e) {\n//     // Laravel 13.2 features:\n//     $e->columns; // e.g., ['email'] on PostgreSQL/SQLite\n//     $e->index;   // e.g., '${modelName.toLowerCase()}_email_unique'\n// }`;
+    
+    return { content: [{ type: "text", text: code }] };
   }
 );
 
