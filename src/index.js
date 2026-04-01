@@ -75,7 +75,7 @@ import {
 
 const server = new McpServer({
   name: "laravel13-livewire4.2.1-mcp",
-  version: "3.1.0",
+  version: "4.0.0",
 });
 
 // ==================== CONSTANTS ====================
@@ -2274,6 +2274,335 @@ server.tool(
     const fieldHandlers = fields.map(f => `'${f}' => 'The ${f} has already been taken.'`).join(',\n            ');
     
     const code = `<?php\n\nnamespace App\\Exceptions;\n\nuse Illuminate\\Database\\Exceptions\\UniqueConstraintViolationException;\nuse Illuminate\\Foundation\\Exceptions\\Handler as ExceptionHandler;\n\n/**\n * Laravel 13.2 - UniqueConstraintViolationException Handler\n * Now includes column and index information for better error handling\n */\nclass ${modelName}ExceptionHandler extends ExceptionHandler\n{\n    /**\n     * Register exception handling\n     */\n    public function register(): void\n    {\n        $this->renderable(function (UniqueConstraintViolationException $e, $request) {\n            // Laravel 13.2 exposes columns and index details\n            $columns = $e->columns ?? [];\n            $index = $e->index ?? null;\n            \n            // Determine which field caused the violation\n            $field = $columns[0] ?? 'field';\n            \n            $messages = [\n                ${fieldHandlers}\n            ];\n            \n            $message = $messages[$field] ?? '${customMessage || 'This value already exists.'}';\n            \n            if ($request->expectsJson()) {\n                return response()->json([\n                    'message' => $message,\n                    'errors' => [\n                        $field => [$message]\n                    ],\n                    'columns' => $columns,\n                    'index' => $index,\n                ], 422);\n            }\n            \n            return back()->withErrors([$field => $message])->withInput();\n        });\n    }\n}\n\n// Usage in Controller:\n// try {\n//     ${modelName}::create($validated);\n// } catch (UniqueConstraintViolationException $e) {\n//     // Laravel 13.2 features:\n//     $e->columns; // e.g., ['email'] on PostgreSQL/SQLite\n//     $e->index;   // e.g., '${modelName.toLowerCase()}_email_unique'\n// }`;
+    
+    return { content: [{ type: "text", text: code }] };
+  }
+);
+
+// ==================== TOOL: Generate Passport Setup ====================
+server.tool(
+  "generate_passport_setup",
+  "Generate Laravel Passport OAuth2 server with password grant, personal access tokens, and client credentials.",
+  {
+    setupType: z.enum(["password", "personal", "client", "full"]).default("full"),
+    userModel: z.string().default("User"),
+    tokenExpiry: z.number().default(60).describe("Access token expiry in minutes"),
+    refreshTokenExpiry: z.number().default(20160).describe("Refresh token expiry in minutes"),
+  },
+  async ({ setupType, userModel, tokenExpiry, refreshTokenExpiry }) => {
+    const code = `<?php\n\nnamespace App\\Http\\Controllers\\Auth;\n\nuse App\\Models\\${userModel};\nuse Illuminate\\Http\\Request;\nuse Illuminate\\Http\\Response;\nuse Illuminate\\Routing\\Controller;\nuse Laravel\\Passport\\Http\\Controllers\\AccessTokenController;\nuse Laravel\\Passport\\Passport;\nuse Laravel\\Passport\\Token;\n\n/**\n * Laravel Passport OAuth2 Controller\n * Generated for Laravel 13.2 with Livewire 4.2.1\n */\nclass PassportAuthController extends Controller\n{\n    /**\n     * Login and issue access token\n     * POST /oauth/token\n     */\n    public function login(Request $request): \\Illuminate\\Http\\JsonResponse\n    {\n        $request->validate([\n            'grant_type' => 'required|in:password',\n            'client_id' => 'required',\n            'client_secret' => 'required',\n            'username' => 'required|email',\n            'password' => 'required',\n            'scope' => 'nullable|string',\n        ]);\n\n        $user = ${userModel}::where('email', $request->username)->first();\n\n        if (!$user || !password_verify($request->password, $user->password)) {\n            return response()->json([\n                'error' => 'invalid_credentials',\n                'message' => 'The provided credentials are incorrect.'\n            ], 401);\n        }\n\n        $token = $user->createToken('api-token', json_decode($request->scope ?? '[]', true))\n            ->plainTextToken;\n\n        return response()->json([\n            'token_type' => 'Bearer',\n            'access_token' => $token,\n            'expires_in' => ${tokenExpiry} * 60,\n            'refresh_token' => $this->generateRefreshToken($user),\n            'user' => $user->only(['id', 'name', 'email']),\n        ]);\n    }\n\n    /**\n     * Register new user and issue token\n     */\n    public function register(Request $request): \\Illuminate\\Http\\JsonResponse\n    {\n        $validated = $request->validate([\n            'name' => 'required|string|max:255',\n            'email' => 'required|email|unique:users,email',\n            'password' => 'required|string|min:8|confirmed',\n        ]);\n\n        $user = ${userModel}::create([\n            'name' => $validated['name'],\n            'email' => $validated['email'],\n            'password' => bcrypt($validated['password']),\n        ]);\n\n        $token = $user->createToken('api-token')->plainTextToken;\n\n        return response()->json([\n            'user' => $user,\n            'token' => $token,\n            'token_type' => 'Bearer',\n        ], 201);\n    }\n\n    /**\n     * Revoke current access token (logout)\n     */\n    public function logout(Request $request): \\Illuminate\\Http\\JsonResponse\n    {\n        $request->user()->currentAccessToken()->delete();\n\n        return response()->json([\n            'message' => 'Successfully logged out.'\n        ]);\n    }\n\n    /**\n     * Revoke all tokens for user\n     */\n    public function logoutAll(Request $request): \\Illuminate\\Http\\JsonResponse\n    {\n        $request->user()->tokens()->delete();\n\n        return response()->json([\n            'message' => 'All sessions terminated.'\n        ]);\n    }\n\n    /**\n     * Get current user info\n     */\n    public function user(Request $request): \\Illuminate\\Http\\JsonResponse\n    {\n        return response()->json($request->user());\n    }\n\n    /**\n     * Generate refresh token\n     */\n    private function generateRefreshToken(${userModel} $user): string\n    {\n        return bin2hex(random_bytes(32));\n    }\n}\n\n// config/passport.php configuration:\nreturn [\n    'prefix' => '',\n    'client' => [\n        'tokens' => 50,\n        'personal_access_client' => ['id' => null, 'secret' => null],\n        'password_client' => ['id' => null, 'secret' => null],\n        'revoke_other_tokens' => false,\n    ],\n    'lifetime' => [\n        'access_tokens' => ${tokenExpiry},\n        'refresh_tokens' => ${refreshTokenExpiry},\n    ]\n];`;
+    
+    return { content: [{ type: "text", text: code }] };
+  }
+);
+
+// ==================== TOOL: Generate Socialite Auth ====================
+server.tool(
+  "generate_socialite_auth",
+  "Generate Laravel Socialite OAuth integration for Google, GitHub, Facebook, Twitter, Apple, and Microsoft.",
+  {
+    providers: z.array(z.enum(["google", "github", "facebook", "twitter", "apple", "microsoft"])).default(["google", "github"]),
+    userModel: z.string().default("User"),
+    createIfNotExists: z.boolean().default(true),
+    linkAccounts: z.boolean().default(true),
+  },
+  async ({ providers, userModel, createIfNotExists, linkAccounts }) => {
+    const providerCases = providers.map(p => `'${p}'`).join(', ');
+    
+    const callbackLogic = linkAccounts 
+      ? `// Link account logic\n        $user = ${userModel}::where('email', $socialUser->getEmail())->first();\n        if ($user) {\n            $user->update(['provider' => $provider, 'provider_id' => $socialUser->getId(), 'avatar' => $socialUser->getAvatar()]);\n        } else {\n            $user = ${userModel}::create(['name' => $socialUser->getName() ?? $socialUser->getNickname(), 'email' => $socialUser->getEmail(), 'password' => bcrypt(Str::random(16)), 'provider' => $provider, 'provider_id' => $socialUser->getId(), 'avatar' => $socialUser->getAvatar(), 'email_verified_at' => now()]);\n        }`
+      : `// Find or create by provider\n        $user = ${userModel}::updateOrCreate(['provider' => $provider, 'provider_id' => $socialUser->getId()], ['name' => $socialUser->getName() ?? $socialUser->getNickname(), 'email' => $socialUser->getEmail(), 'avatar' => $socialUser->getAvatar(), 'email_verified_at' => now()]);`;
+    
+    const code = `<?php\n\nnamespace App\\Http\\Controllers\\Auth;\n\nuse App\\Models\\${userModel};\nuse Illuminate\\Http\\Request;\nuse Illuminate\\Support\\Facades\\Auth;\nuse Illuminate\\Support\\Str;\nuse Laravel\\Socialite\\Facades\\Socialite;\n\nclass SocialAuthController extends Controller\n{\n    protected array $providers = [${providerCases}];\n\n    public function redirect(string $provider)\n    {\n        $this->validateProvider($provider);\n        return Socialite::driver($provider)->scopes($this->getScopes($provider))->redirect();\n    }\n\n    public function callback(string $provider)\n    {\n        $this->validateProvider($provider);\n        try {\n            $socialUser = Socialite::driver($provider)->user();\n        } catch (\\Exception $e) {\n            return redirect('/login')->withErrors(['provider' => 'Unable to authenticate with ' . $provider]);\n        }\n\n        ${callbackLogic}\n\n        Auth::login($user);\n        $request->session()->regenerate();\n        return redirect('/dashboard');\n    }\n\n    public function disconnect(string $provider, Request $request)\n    {\n        $request->user()->update(['provider' => null, 'provider_id' => null]);\n        return back()->with('success', $provider . ' account disconnected.');\n    }\n\n    private function validateProvider(string $provider): void\n    {\n        if (!in_array($provider, $this->providers)) {\n            abort(404, 'Provider not supported.');\n        }\n    }\n\n    private function getScopes(string $provider): array\n    {\n        return match($provider) {\n            'google' => ['email', 'profile', 'openid'],\n            'github' => ['user:email', 'read:user'],\n            'facebook' => ['email', 'public_profile'],\n            'twitter' => ['tweet.read', 'users.read'],\n            'apple' => ['name', 'email'],\n            'microsoft' => ['User.Read', 'email'],\n            default => [],\n        };\n    }\n}`;
+    
+    return { content: [{ type: "text", text: code }] };
+  }
+);
+
+// ==================== TOOL: Generate JWT Auth ====================
+server.tool(
+  "generate_jwt_auth",
+  "Generate JWT authentication with tymon/jwt-auth, refresh tokens, and token blacklist.",
+  {
+    userModel: z.string().default("User"),
+    tokenExpiry: z.number().default(60).describe("Token expiry in minutes"),
+    refreshTokenExpiry: z.number().default(20160).describe("Refresh token expiry in minutes"),
+    enableRefresh: z.boolean().default(true),
+  },
+  async ({ userModel, tokenExpiry, refreshTokenExpiry, enableRefresh }) => {
+    const refreshCode = enableRefresh ? `\n    /**\n     * Refresh JWT token\n     */\n    public function refresh(Request $request): JsonResponse\n    {\n        try {\n            $newToken = auth()->refresh(true, true);\n            \n            return response()->json([\n                'token' => $newToken,\n                'token_type' => 'bearer',\n                'expires_in' => ${tokenExpiry} * 60,\n            ]);\n        } catch (JWTException $e) {\n            return response()->json(['error' => 'Token refresh failed'], 401);\n        }\n    }` : '';
+    
+    const code = `<?php\n\nnamespace App\\Http\\Controllers\\Auth;\n\nuse App\\Models\\${userModel};\nuse Illuminate\\Http\\JsonResponse;\nuse Illuminate\\Http\\Request;\nuse Illuminate\\Routing\\Controller;\nuse Illuminate\\Support\\Facades\\Hash;\nuse Tymon\\JWTAuth\\Exceptions\\JWTException;\nuse Tymon\\JWTAuth\\Exceptions\\TokenExpiredException;\nuse Tymon\\JWTAuth\\Exceptions\\TokenInvalidException;\nuse Tymon\\JWTAuth\\Exceptions\\TokenBlacklistedException;\nuse Tymon\\JWTAuth\\Facades\\JWTAuth;\n\n/**\n * JWT Authentication Controller\n * Uses tymon/jwt-auth for Laravel 13.2\n */\nclass JWTAuthController extends Controller\n{\n    /**\n     * Register new user\n     */\n    public function register(Request $request): JsonResponse\n    {\n        $validated = $request->validate([\n            'name' => 'required|string|max:255',\n            'email' => 'required|email|unique:users,email',\n            'password' => 'required|string|min:8|confirmed',\n        ]);\n\n        $user = ${userModel}::create([\n            'name' => $validated['name'],\n            'email' => $validated['email'],\n            'password' => Hash::make($validated['password']),\n        ]);\n\n        $token = JWTAuth::fromUser($user);\n\n        return response()->json([\n            'user' => $user,\n            'token' => $token,\n            'token_type' => 'bearer',\n            'expires_in' => ${tokenExpiry} * 60,\n        ], 201);\n    }\n\n    /**\n     * Login and return JWT token\n     */\n    public function login(Request $request): JsonResponse\n    {\n        $credentials = $request->validate([\n            'email' => 'required|email',\n            'password' => 'required',\n        ]);\n\n        try {\n            $token = JWTAuth::attempt($credentials);\n            \n            if (!$token) {\n                return response()->json([\n                    'error' => 'Invalid credentials'\n                ], 401);\n            }\n        } catch (JWTException $e) {\n            return response()->json([\n                'error' => 'Could not create token'\n            ], 500);\n        }\n\n        return $this->respondWithToken($token);\n    }\n\n    /**\n     * Get authenticated user\n     */\n    public function user(Request $request): JsonResponse\n    {\n        return response()->json($request->user());\n    }\n\n    /**\n     * Refresh JWT token\n     */\n    public function refresh(Request $request): JsonResponse\n    {\n        try {\n            $newToken = auth()->refresh(true, true);\n            \n            return response()->json([\n                'token' => $newToken,\n                'token_type' => 'bearer',\n                'expires_in' => ${tokenExpiry} * 60,\n            ]);\n        } catch (JWTException $e) {\n            return response()->json(['error' => 'Token refresh failed'], 401);\n        }\n    }\n\n    /**\n     * Logout - invalidate token\n     */\n    public function logout(Request $request): JsonResponse\n    {\n        try {\n            JWTAuth::parseToken()->invalidate();\n            \n            return response()->json(['message' => 'Successfully logged out']);\n        } catch (JWTException $e) {\n            return response()->json(['error' => 'Failed to logout'], 500);\n        }\n    }\n\n    /**\n     * Respond with token\n     */\n    protected function respondWithToken(string $token): JsonResponse\n    {\n        return response()->json([\n            'access_token' => $token,\n            'token_type' => 'bearer',\n            'expires_in' => ${tokenExpiry} * 60,\n        ]);\n    }\n}\n\n// app/Http/Middleware/JWTAuth.php:\nnamespace App\\Http\\Middleware;\n\nclass JWTAuth\n{\n    public function handle($request, \\Closure $next)\n    {\n        try {\n            $user = JWTAuth::parseToken()->authenticate();\n        } catch (TokenExpiredException $e) {\n            return response()->json(['error' => 'Token expired'], 401);\n        } catch (TokenInvalidException $e) {\n            return response()->json(['error' => 'Token invalid'], 401);\n        } catch (TokenBlacklistedException $e) {\n            return response()->json(['error' => 'Token blacklisted'], 401);\n        } catch (JWTException $e) {\n            return response()->json(['error' => 'Token missing'], 401);\n        }\n\n        return $next($request);\n    }\n}\n\n// config/jwt.php:\nreturn [\n    'secret' => env('JWT_SECRET'),\n    'ttl' => ${tokenExpiry},\n    'refresh_ttl' => ${refreshTokenExpiry},\n    'algo' => 'HS256',\n];`;
+    
+    return { content: [{ type: "text", text: code }] };
+  }
+);
+
+// ==================== TOOL: Generate Sanctum API ====================
+server.tool(
+  "generate_sanctum_api",
+  "Generate Laravel Sanctum API authentication with token abilities, expiration, and SPA authentication.",
+  {
+    userModel: z.string().default("User"),
+    enableSPA: z.boolean().default(true),
+    enableTokenExpiration: z.boolean().default(true),
+    tokenAbilities: z.array(z.string()).default(["*"]),
+  },
+  async ({ userModel, enableSPA, enableTokenExpiration, tokenAbilities }) => {
+    const spaCode = enableSPA ? `\n    /**\n     * SPA Authentication (with cookie)\n     */\n    public function spaLogin(Request $request): JsonResponse\n    {\n        $credentials = $request->validate([\n            'email' => 'required|email',\n            'password' => 'required',\n        ]);\n\n        if (!Auth::attempt($credentials)) {\n            return response()->json(['error' => 'Invalid credentials'], 401);\n        }\n\n        $request->session()->regenerate();\n\n        return response()->json(['message' => 'Authenticated']);\n    }` : '';
+    
+    const code = `<?php\n\nnamespace App\\Http\\Controllers\\Auth;\n\nuse App\\Models\\${userModel};\nuse Illuminate\\Http\\JsonResponse;\nuse Illuminate\\Http\\Request;\nuse Illuminate\\Routing\\Controller;\nuse Illuminate\\Support\\Facades\\Auth;\n\n/**\n * Laravel Sanctum API Authentication\n * Token abilities, expiration, and SPA support\n */\nclass SanctumAuthController extends Controller\n{\n    /**\n     * Register and create token\n     */\n    public function register(Request $request): JsonResponse\n    {\n        $validated = $request->validate([\n            'name' => 'required|string|max:255',\n            'email' => 'required|email|unique:users,email',\n            'password' => 'required|string|min:8|confirmed',\n        ]);\n\n        $user = ${userModel}::create([\n            'name' => $validated['name'],\n            'email' => $validated['email'],\n            'password' => bcrypt($validated['password']),\n        ]);\n\n        $token = $user->createToken(\n            'api-token',\n            ${JSON.stringify(tokenAbilities)}\n        )${enableTokenExpiration ? '->expiresAt(now()->addDays(30))' : ''}->plainTextToken;\n\n        return response()->json([\n            'user' => $user,\n            'token' => $token,\n            'token_type' => 'Bearer',\n        ], 201);\n    }\n\n    /**\n     * Login and create token\n     */\n    public function login(Request $request): JsonResponse\n    {\n        $credentials = $request->validate([\n            'email' => 'required|email',\n            'password' => 'required',\n        ]);\n\n        if (!Auth::attempt($credentials)) {\n            return response()->json(['error' => 'Invalid credentials'], 401);\n        }\n\n        /** @var ${userModel} $user */\n        $user = Auth::user();\n        \n        $token = $user->createToken(\n            'api-token',\n            ${JSON.stringify(tokenAbilities)}\n        )${enableTokenExpiration ? '->expiresAt(now()->addDays(30))' : ''}->plainTextToken;\n\n        return response()->json([\n            'user' => $user,\n            'token' => $token,\n            'token_type' => 'Bearer',\n        ]);\n    }${spaCode}\n\n    /**\n     * Get current user with token abilities\n     */\n    public function user(Request $request): JsonResponse\n    {\n        $user = $request->user();\n        $token = $request->user()->currentAccessToken();\n\n        return response()->json([\n            'user' => $user,\n            'abilities' => $token->abilities,\n        ]);\n    }\n\n    /**\n     * Revoke current token (logout)\n     */\n    public function logout(Request $request): JsonResponse\n    {\n        $request->user()->currentAccessToken()->delete();\n\n        return response()->json(['message' => 'Logged out']);\n    }\n\n    /**\n     * Revoke all tokens (logout all devices)\n     */\n    public function logoutAll(Request $request): JsonResponse\n    {\n        $request->user()->tokens()->delete();\n\n        return response()->json(['message' => 'All sessions terminated']);\n    }\n\n    /**\n     * List all active tokens\n     */\n    public function tokens(Request $request): JsonResponse\n    {\n        $tokens = $request->user()->tokens()->get()->map(function ($token) {\n            return [\n                'id' => $token->id,\n                'name' => $token->name,\n                'abilities' => $token->abilities,\n                'last_used_at' => $token->last_used_at,\n                'created_at' => $token->created_at,\n                'expires_at' => $token->expires_at,\n            ];\n        });\n\n        return response()->json(['tokens' => $tokens]);\n    }\n\n    /**\n     * Revoke specific token\n     */\n    public function revokeToken(Request $request, int $tokenId): JsonResponse\n    {\n        $token = $request->user()->tokens()->findOrFail($tokenId);\n        $token->delete();\n\n        return response()->json(['message' => 'Token revoked']);\n    }\n}\n\n// routes/api.php:\nRoute::prefix('auth')->group(function () {\n    Route::post('register', [SanctumAuthController::class, 'register']);\n    Route::post('login', [SanctumAuthController::class, 'login']);\n    \n    Route::middleware('auth:sanctum')->group(function () {\n        Route::get('user', [SanctumAuthController::class, 'user']);\n        Route::post('logout', [SanctumAuthController::class, 'logout']);\n        Route::post('logout-all', [SanctumAuthController::class, 'logoutAll']);\n        Route::get('tokens', [SanctumAuthController::class, 'tokens']);\n        Route::delete('tokens/{id}', [SanctumAuthController::class, 'revokeToken']);\n    });\n});`;
+    
+    return { content: [{ type: "text", text: code }] };
+  }
+);
+
+// ==================== TOOL: Generate OAuth Security Audit ====================
+server.tool(
+  "oauth_security_audit",
+  "Audit OAuth implementation for security vulnerabilities including token leakage, CSRF, PKCE, and state parameter.",
+  {
+    code: z.string().describe("OAuth-related code to audit"),
+    provider: z.enum(["passport", "sanctum", "jwt", "socialite", "custom"]).optional(),
+  },
+  async ({ code, provider }) => {
+    const issues = [];
+    
+    // Token leakage checks
+    if (code.includes("token") && (code.includes("url") || code.includes("redirect") || code.includes("query"))) {
+      issues.push({ severity: "CRITICAL", type: "Token Leakage", msg: "Token exposed in URL or redirect", fix: "Use POST requests for token exchange, never put tokens in URLs" });
+    }
+    
+    // Missing state parameter
+    if (code.includes("redirect") && !code.includes("state")) {
+      issues.push({ severity: "HIGH", type: "CSRF", msg: "Missing state parameter in OAuth flow", fix: "Generate and validate state parameter to prevent CSRF attacks" });
+    }
+    
+    // Missing PKCE
+    if ((code.includes("code_challenge") && !code.includes("S256")) || (code.includes("oauth") && !code.includes("pkce"))) {
+      issues.push({ severity: "MEDIUM", type: "PKCE", msg: "PKCE not implemented or using plain method", fix: "Implement PKCE with S256 code challenge method" });
+    }
+    
+    // Insecure token storage
+    if (code.includes("localStorage") || code.includes("sessionStorage")) {
+      issues.push({ severity: "HIGH", type: "Token Storage", msg: "Token stored in localStorage/sessionStorage", fix: "Use httpOnly cookies for token storage" });
+    }
+    
+    // Missing token expiration
+    if (code.includes("createToken") && !code.includes("expires") && !code.includes("ttl")) {
+      issues.push({ severity: "MEDIUM", type: "Token Expiration", msg: "Token has no expiration set", fix: "Set appropriate token expiration (15-60 minutes for access tokens)" });
+    }
+    
+    // Missing refresh token rotation
+    if (code.includes("refresh") && !code.includes("rotate") && !code.includes("revoke")) {
+      issues.push({ severity: "MEDIUM", type: "Token Rotation", msg: "Refresh token not rotated on use", fix: "Implement refresh token rotation for better security" });
+    }
+    
+    // SQL injection in OAuth
+    if (code.includes("provider_id") && code.includes("$request")) {
+        issues.push({ severity: "HIGH", type: "Input Validation", msg: "Provider ID not validated", fix: "Validate and sanitize provider ID before database operations" });
+    }
+    
+    // Missing CORS
+    if (code.includes("api") && !code.includes("cors")) {
+        issues.push({ severity: "MEDIUM", type: "CORS", msg: "CORS not configured for API", fix: "Configure CORS in config/cors.php with allowed origins" });
+    }
+    
+    // Missing rate limiting
+    if (code.includes("login") && !code.includes("throttle") && !code.includes("rate")) {
+        issues.push({ severity: "MEDIUM", type: "Rate Limiting", msg: "No rate limiting on auth endpoints", fix: "Add throttle middleware to login/register endpoints" });
+    }
+    
+    // Secure cookie flags
+    if (code.includes("cookie") && !code.includes("httponly") && !code.includes("secure")) {
+        issues.push({ severity: "MEDIUM", type: "Cookie Security", msg: "Cookie missing secure flags", fix: "Set httpOnly, secure, and sameSite flags on auth cookies" });
+    }
+    
+    const result = issues.length === 0 
+      ? "✅ OAuth implementation appears secure. No critical issues found." 
+      : `Found ${issues.length} OAuth security issue(s):\n\n` + issues.map(i => `🔴 [${i.severity}] ${i.type}\n   ${i.msg}\n   Fix: ${i.fix}`).join("\n\n");
+    
+    return { content: [{ type: "text", text: result }] };
+  }
+);
+
+// ==================== TOOL: Generate Wiki Page ====================
+server.tool(
+  "generate_wiki_page",
+  "Generate markdown documentation wiki page for project architecture, features, or API documentation.",
+  {
+    title: z.string().describe("Wiki page title"),
+    type: z.enum(["architecture", "feature", "api", "guide", "changelog", "decision", "troubleshooting"]).default("feature"),
+    content: z.string().optional().describe("Page content or description"),
+    sections: z.array(z.string()).optional().describe("Sections to include"),
+    relatedPages: z.array(z.string()).optional(),
+  },
+  async ({ title, type, content, sections, relatedPages }) => {
+    const typeMeta = {
+      architecture: { icon: "🏗️", category: "Architecture", defaultSections: ["Overview", "Components", "Data Flow", "Technology Stack", "Diagrams"] },
+      feature: { icon: "✨", category: "Features", defaultSections: ["Description", "Requirements", "Implementation", "Usage", "Testing"] },
+      api: { icon: "🔌", category: "API", defaultSections: ["Endpoints", "Authentication", "Request/Response", "Examples", "Errors"] },
+      guide: { icon: "📖", category: "Guides", defaultSections: ["Prerequisites", "Steps", "Configuration", "Troubleshooting", "References"] },
+      changelog: { icon: "📋", category: "Changelog", defaultSections: ["Added", "Changed", "Fixed", "Removed", "Security"] },
+      decision: { icon: "📝", category: "ADRs", defaultSections: ["Context", "Decision", "Consequences", "Alternatives Considered"] },
+      troubleshooting: { icon: "🔧", category: "Troubleshooting", defaultSections: ["Problem", "Symptoms", "Cause", "Solution", "Prevention"] }
+    };
+    
+    const meta = typeMeta[type];
+    const includeSections = sections || meta.defaultSections;
+    
+    const sectionContent = includeSections.map(section => `\n## ${section}\n\n${getSectionPlaceholder(section, type)}`).join('\n');
+    
+    const related = relatedPages?.length ? `\n\n## Related Pages\n\n${relatedPages.map(p => `- [[${p}]]`).join('\n')}` : '';
+    
+    const code = `---\ntitle: "${title}"\ncategory: "${meta.category}"\ntags: [${type}, documentation]\ncreated: "${new Date().toISOString().split('T')[0]}"\nupdated: "${new Date().toISOString().split('T')[0]}"\nstatus: draft\n---\n\n# ${meta.icon} ${title}\n\n${content || 'Overview of ' + title + '.'}\n${sectionContent}${related}\n\n---\n\n*This page was auto-generated by MCP Laravel/Livewire v1.1*\n*Last updated: ${new Date().toISOString()}*`;
+    
+    return { content: [{ type: "text", text: code }] };
+  }
+);
+
+// Helper function for wiki sections
+function getSectionPlaceholder(section, type) {
+  const placeholders = {
+    "Overview": "Describe the purpose and scope of this topic.",
+    "Description": "Detailed description of the feature or component.",
+    "Requirements": "- [ ] Requirement 1\n- [ ] Requirement 2",
+    "Implementation": "Implementation details and code examples.",
+    "Usage": "```php\n// Code example\n```",
+    "Endpoints": "| Method | Endpoint | Description |\n|--------|----------|-------------|\n| GET | /api/resource | List items |",
+    "Prerequisites": "- [ ] Prerequisite 1\n- [ ] Prerequisite 2",
+    "Steps": "1. Step one\n2. Step two\n3. Step three",
+    "Problem": "Describe the problem encountered.",
+    "Solution": "Describe the solution.",
+    "Context": "What is the issue that we are seeing that is motivating this decision?",
+    "Decision": "What is the change that we're proposing?",
+    "Consequences": "What becomes easier or more difficult?",
+    "Added": "- New features",
+    "Changed": "- Changes to existing features",
+    "Fixed": "- Bug fixes"
+  };
+  return placeholders[section] || "Content for this section.";
+}
+
+// ==================== TOOL: Generate Wiki Index ====================
+server.tool(
+  "generate_wiki_index",
+  "Generate a wiki index/table of contents with auto-linked pages.",
+  {
+    projectName: z.string().describe("Project name"),
+    categories: z.array(z.string()).default(["architecture", "features", "api", "guides"]),
+    pages: z.array(z.object({ title: z.string(), path: z.string(), category: z.string() })).default([]),
+  },
+  async ({ projectName, categories, pages }) => {
+    const categorySections = categories.map(cat => {
+      const catPages = pages.filter(p => p.category === cat);
+      const pageLinks = catPages.length > 0 
+        ? catPages.map(p => `- [${p.title}](${p.path})`).join('\n')
+        : `- No pages yet. Use \`generate_wiki_page\` to create one.`;
+      
+      return `\n## ${capitalize(cat)}\n\n${pageLinks}`;
+    }).join('\n');
+    
+    const code = `---\ntitle: "${projectName} Documentation Wiki"\ntype: index\n---\n\n# 📚 ${projectName} Documentation\n\nWelcome to the official documentation wiki for **${projectName}**.\n\n## Quick Links\n\n- 🚀 [Getting Started](getting-started.md)\n- 📖 [API Reference](api/reference.md)\n- 🔧 [Troubleshooting](troubleshooting/index.md)\n- 📋 [Changelog](changelog/CHANGELOG.md)\n\n${categorySections}\n\n---\n\n## Contributing\n\nTo add or update documentation:\n1. Use the \`generate_wiki_page\` tool to create new pages\n2. Follow the markdown format with YAML frontmatter\n3. Update this index when adding new categories\n\n---\n\n*Documentation generated by MCP Laravel/Livewire v1.1*`;
+    
+    return { content: [{ type: "text", text: code }] };
+  }
+);
+
+// Helper function
+function capitalize(str) {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+// ==================== TOOL: Generate Command Registry ====================
+server.tool(
+  "generate_command_registry",
+  "Generate a command palette/registry for common development, deployment, and maintenance commands.",
+  {
+    projectName: z.string().describe("Project name"),
+    commands: z.array(z.object({ 
+      name: z.string(), 
+      category: z.enum(["dev", "test", "deploy", "db", "oauth", "cache", "queue", "artisan"]), 
+      description: z.string(), 
+      command: z.string() 
+    })).default([]),
+    includeAliases: z.boolean().default(true),
+  },
+  async ({ projectName, commands, includeAliases }) => {
+    const defaultCommands = [
+      { name: "dev.setup", category: "dev", description: "Setup development environment", command: "npm install && composer install" },
+      { name: "dev.test", category: "test", description: "Run all tests", command: "php artisan test --parallel" },
+      { name: "dev.lint", category: "dev", description: "Run PHP CS Fixer", command: "./vendor/bin/pint" },
+      { name: "db.migrate", category: "db", description: "Run migrations", command: "php artisan migrate" },
+      { name: "db.seed", category: "db", description: "Seed database", command: "php artisan db:seed" },
+      { name: "db.fresh", category: "db", description: "Fresh migrate with seed", command: "php artisan migrate:fresh --seed" },
+      { name: "cache.clear", category: "cache", description: "Clear all caches", command: "php artisan optimize:clear" },
+      { name: "queue.work", category: "queue", description: "Start queue worker", command: "php artisan queue:work" },
+      { name: "oauth.passport", category: "oauth", description: "Install Passport keys", command: "php artisan passport:install" },
+    ];
+    
+    const allCommands = [...defaultCommands, ...commands];
+    const grouped = allCommands.reduce((acc, cmd) => {
+      acc[cmd.category] = acc[cmd.category] || [];
+      acc[cmd.category].push(cmd);
+      return acc;
+    }, {});
+    
+    const categories = Object.keys(grouped).map(cat => {
+      const cmds = grouped[cat];
+      return `\n### ${capitalize(cat)}\n\n| Command | Description | Action |\n|---------|-------------|--------|\n${cmds.map(c => `| \`${c.name}\` | ${c.description} | \`${c.command}\` |`).join('\n')}`;
+    }).join('\n');
+    
+    const aliases = includeAliases ? `\n## Aliases\n\n\`\`\`json\n{\n  "ds": "dev.setup",\n  "dt": "dev.test",\n  "dm": "db.migrate",\n  "dfs": "db.fresh",\n  "cc": "cache.clear",\n  "qw": "queue.work"\n}\n\`\`\`\n` : '';
+    
+    const code = `# ${projectName} Command Palette\n\nQuick access to common commands for development, testing, and deployment.\n\n## Usage\n\n\`\`\`bash\n# Run a command by name\n./scripts/command.sh dev.test\n\n# Or use the MCP tool\nmcp execute_command --name dev.test\n\`\`\`\n\n${categories}\n${aliases}\n---\n\n*Command registry generated by MCP Laravel/Livewire v1.1*`;
+    
+    return { content: [{ type: "text", text: code }] };
+  }
+);
+
+// ==================== TOOL: Generate Ask Context ====================
+server.tool(
+  "generate_ask_context",
+  "Generate context-aware Q&A response with best practices for Laravel/Livewire development.",
+  {
+    question: z.string().describe("Question to answer"),
+    context: z.object({
+      projectType: z.string().optional(),
+      techStack: z.array(z.string()).optional(),
+      currentPhase: z.number().optional(),
+      existingFeatures: z.array(z.string()).optional(),
+    }).optional(),
+    includeCodeExamples: z.boolean().default(true),
+    includeReferences: z.boolean().default(true),
+  },
+  async ({ question, context, includeCodeExamples, includeReferences }) => {
+    const lowerQuestion = question.toLowerCase();
+    
+    let answer = "";
+    let codeExample = "";
+    let references = "";
+    
+    // Pattern matching for common questions
+    if (lowerQuestion.includes("multi-tenancy") || lowerQuestion.includes("tenant")) {
+      answer = `## Multi-Tenancy in Laravel 13.2\n\nFor SaaS applications, use the **stancl/tenancy** package for robust multi-tenancy:\n\n### Approach Options:\n1. **Database per tenant** - Best isolation, higher cost\n2. **Schema per tenant** - Good isolation, moderate complexity\n3. **Shared database** - Most economical, requires careful scoping\n\n### Recommended: Database per tenant`;
+      codeExample = `\n\`\`\`php\n// tenant(central)/migrations/tenants.php\nSchema::create('tenants', function (Blueprint $table) {\n    $table->string('id')->primary();\n    $table->string('domain')->unique();\n    $table->string('name');\n    $table->timestamps();\n});\n\n// app/Models/Tenant.php\nclass Tenant extends Model implements CentralModel\n{\n    use HasFactory;\n    \n    protected $fillable = ['id', 'domain', 'name'];\n}\n\n// app/Http/Middleware/InitializeTenancy.php\npublic function handle(Request $request, Closure $next)\n{\n    $domain = $request->getHost();\n    $tenant = Tenant::where('domain', $domain)->firstOrFail();\n    \n    tenancy()->initialize($tenant);\n    \n    return $next($request);\n}\n\`\`\``;
+    } else if (lowerQuestion.includes("real-time") || lowerQuestion.includes("websocket") || lowerQuestion.includes("reverb")) {
+      answer = `## Real-time Features with Laravel Reverb\n\nLaravel 13.2 includes **Reverb**, a first-party WebSocket server.\n\n### Setup Steps:\n1. Install Reverb\n2. Configure channels\n3. Broadcast events\n4. Listen on frontend`;
+      codeExample = `\n\`\`\`php\n// config/reverb.php\nreturn [\n    'apps' => [[\n        'id' => env('REVERB_APP_ID'),\n        'key' => env('REVERB_APP_KEY'),\n        'secret' => env('REVERB_APP_SECRET'),\n    ]],\n];\n\n// app/Events/MessageSent.php\nclass MessageSent implements ShouldBroadcast\n{\n    use Dispatchable, InteractsWithSockets, SerializesModels;\n    \n    public function __construct(public Message $message) {}\n    \n    public function broadcastOn(): array\n    {\n        return [new PrivateChannel('chat.' . $this->message->room_id)];\n    }\n}\n\n// Blade: @auth\nEcho.private('chat.{{ $roomId }}')\n    .listen('MessageSent', (e) => {\n        console.log(e.message);\n    });\n// @endauth\n\`\`\``;
+    } else if (lowerQuestion.includes("security") || lowerQuestion.includes("secure")) {
+      answer = `## Security Best Practices for Laravel 13.2\n\n### Essential Security Measures:\n1. **CSRF Protection** - Always use @csrf in forms\n2. **XSS Prevention** - Use {{ }} not {!! !!} for user data\n3. **SQL Injection** - Use Eloquent/DB with bindings\n4. **Authentication** - Use Laravel Sanctum or Passport\n5. **Authorization** - Implement policies for all resources`;
+      codeExample = `\n\`\`\`php\n// Security Headers Middleware\npublic function handle(Request $request, Closure $next)\n{\n    return $next($request)\n        ->header('X-Content-Type-Options', 'nosniff')\n        ->header('X-Frame-Options', 'DENY')\n        ->header('X-XSS-Protection', '1; mode=block')\n        ->header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');\n}\n\n// Rate Limiting\nRoute::middleware('throttle:login')->post('/login', [AuthController::class, 'login']);\n\n// In AppServiceProvider\nRateLimiter::for('login', function (Request $request) {\n    return Limit::perMinute(5)->by($request->ip());\n});\n\`\`\``;
+    } else if (lowerQuestion.includes("livewire") && (lowerQuestion.includes("best") || lowerQuestion.includes("practice"))) {
+      answer = `## Livewire 4.2.1 Best Practices\n\n### Component Design:\n1. **Single Responsibility** - One component per feature\n2. **Renderless Components** - Use #[Renderless] for logic-only\n3. **Lazy Loading** - Add wire:loading for better UX\n4. **Debounce Inputs** - Use wire:model.debounce.300ms\n5. **Security** - Never expose lifecycle methods as public`;
+      codeExample = `\n\`\`\`php\n// Good: Renderless component for logic\n#[Renderless]\nfinal class ConfirmDialog extends Component\n{\n    public bool $show = false;\n    \n    #[On('confirm')]\n    public function confirm(): void { /* logic only */ }\n}\n\n// Good: Proper validation\n#[Validate(['title' => 'required|string|max:255'])]\npublic string $title = '';\n\n// Good: Debounced search\n// blade.php: <input wire:model.live.debounce.300ms="search">\n\n// Good: Loading states\n<button wire:loading.attr="disabled">Save</button>\n\`\`\``;
+    } else {
+      answer = `## Answer to: "${question}"\n\nBased on Laravel 13.2 and Livewire 4.2.1 best practices:\n\n### Key Considerations:\n- Use PHP 8.4 features where applicable\n- Follow SOLID principles\n- Implement proper validation\n- Add authorization checks\n- Use Eloquent relationships efficiently`;
+    }
+    
+    const refSection = includeReferences ? `\n\n## References\n\n- [Laravel 13 Documentation](https://laravel.com/docs/13.x)\n- [Livewire 4.2 Documentation](https://livewire.laravel.com/docs)\n- [Laravel News](https://laravel-news.com)` : '';
+    
+    const code = `# Q&A: ${question}\n\n${answer}\n${codeExample}\n\n---\n\n*Context: ${context?.projectType || 'General'} | Phase: ${context?.currentPhase || 'N/A'}*\n${refSection}\n\n*Generated by MCP Laravel/Livewire v1.1*`;
     
     return { content: [{ type: "text", text: code }] };
   }
