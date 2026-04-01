@@ -1,7 +1,7 @@
 {
   "name": "mcp-laravel-livewire",
-  "version": "3.1.0",
-  "description": "MCP Server for Livewire v4.2.1 / Laravel 13.2 / PHP 8.4+ — 75+ AI-powered tools: DRY patterns, security hardening, Flux UI, Reverb, renderless components, new model attributes, jobs, notifications, policies, middleware.",
+  "version": "4.0.0",
+  "description": "MCP Server for Livewire v4.2.1 / Laravel 13.2 / PHP 8.4+ — 84+ AI-powered tools: OAuth (Passport, Socialite, JWT, Sanctum), /wiki, /plan, /bugs, /command, /ask, DRY patterns, security hardening, Flux UI, Reverb, renderless components.",
   "type": "module",
   "main": "src/index.js",
   "bin": {
